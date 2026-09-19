@@ -1,0 +1,16 @@
+{
+  "name": "自炊メモ - スーパー価格・品ぞろえ管理",
+  "short_name": "自炊メモ",
+  "description": "スーパーの食材価格・品ぞろえを記録して、買い物リストと価格比較ができる自炊支援アプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f5f2",
+  "theme_color": "#2f7d5a",
+  "lang": "ja",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

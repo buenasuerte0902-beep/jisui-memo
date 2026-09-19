@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>自炊メモ - スーパー価格・品ぞろえ管理</title>
+<meta name="description" content="スーパーの食材価格・品ぞろえを記録して、買い物リストと価格比較ができる自炊支援アプリ">
+<meta name="theme-color" content="#2f7d5a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="自炊メモ">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="app-header">
+  <h1>自炊メモ</h1>
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-view="stores">店舗</button>
+    <button class="tab-btn" data-view="shopping">買い物リスト</button>
+    <button class="tab-btn" data-view="compare">価格比較</button>
+    <button class="tab-btn" data-view="settings">設定</button>
+  </nav>
+</header>
+
+<main id="app">
+
+  <!-- 店舗一覧 -->
+  <section id="view-stores" class="view active">
+    <div id="storeListScreen">
+      <form id="storeForm" class="card form-inline">
+        <input type="text" id="storeName" placeholder="店舗名（例: 〇〇スーパー△△店）" required>
+        <input type="text" id="storeMemo" placeholder="場所・メモ（任意）">
+        <button type="submit" class="btn-primary">追加</button>
+      </form>
+      <ul id="storeList" class="list"></ul>
+      <p id="storeEmpty" class="empty-msg">まだ店舗が登録されていません。上のフォームから追加してください。</p>
+    </div>
+
+    <div id="storeDetailScreen" class="hidden">
+      <button id="backToStores" class="btn-back">← 店舗一覧に戻る</button>
+      <div class="store-detail-title">
+        <h2 id="detailStoreName"></h2>
+        <p id="detailStoreMemo" class="muted"></p>
+      </div>
+
+      <form id="itemForm" class="card">
+        <div class="form-row">
+          <input type="text" id="itemName" placeholder="品名（例: 豚こま肉）" required list="itemNameSuggestions">
+          <datalist id="itemNameSuggestions"></datalist>
+        </div>
+        <div class="form-row two-col">
+          <input type="number" id="itemPrice" placeholder="価格（円）" min="0" step="1" required>
+          <select id="itemUnit">
+            <option value="1個">1個</option>
+            <option value="1パック">1パック</option>
+            <option value="1袋">1袋</option>
+            <option value="1本">1本</option>
+            <option value="100g" selected>100g</option>
+            <option value="100ml">100ml</option>
+            <option value="1kg">1kg</option>
+            <option value="1L">1L</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input type="text" id="itemNote" placeholder="品ぞろえメモ（例: 特売、品薄、常に安い 等）">
+        </div>
+        <div class="form-row two-col">
+          <input type="date" id="itemDate">
+          <button type="submit" class="btn-primary">記録する</button>
+        </div>
+      </form>
+
+      <div class="item-list-header">
+        <input type="text" id="itemFilter" placeholder="品名で絞り込み...">
+      </div>
+      <ul id="itemList" class="list"></ul>
+      <p id="itemEmpty" class="empty-msg">まだ記録がありません。</p>
+    </div>
+  </section>
+
+  <!-- 買い物リスト -->
+  <section id="view-shopping" class="view">
+    <form id="shoppingForm" class="card">
+      <div class="form-row two-col">
+        <input type="text" id="shoppingName" placeholder="品名（例: 卵）" required list="shoppingNameSuggestions">
+        <input type="text" id="shoppingQty" placeholder="数量・メモ（任意）">
+      </div>
+      <datalist id="shoppingNameSuggestions"></datalist>
+      <button type="submit" class="btn-primary">リストに追加</button>
+    </form>
+    <div class="btn-row" id="shoppingActions">
+      <button id="clearCheckedBtn" class="btn-secondary hidden">チェック済みを削除</button>
+    </div>
+    <ul id="shoppingList" class="list"></ul>
+    <p id="shoppingEmpty" class="empty-msg">買い物リストは空です。上のフォームから追加してください。</p>
+  </section>
+
+  <!-- 価格比較 -->
+  <section id="view-compare" class="view">
+    <div class="card">
+      <input type="text" id="compareSearch" placeholder="品名を入力して価格を比較（例: 卵）" list="compareSuggestions">
+      <datalist id="compareSuggestions"></datalist>
+    </div>
+    <ul id="compareList" class="list"></ul>
+    <p id="compareEmpty" class="empty-msg">品名を入力すると、登録済みの全店舗から価格を安い順に表示します。</p>
+  </section>
+
+  <!-- 設定 -->
+  <section id="view-settings" class="view">
+    <div class="card">
+      <h2>データのバックアップ</h2>
+      <p class="muted">データはこの端末のブラウザ内にのみ保存されています。機種変更やブラウザ変更の前にエクスポートしておくことをおすすめします。</p>
+      <div class="btn-row">
+        <button id="exportBtn" class="btn-primary">JSONをエクスポート</button>
+        <label class="btn-secondary file-label">
+          インポート
+          <input type="file" id="importFile" accept="application/json" hidden>
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="clearAllBtn" class="btn-danger">全データを削除</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
