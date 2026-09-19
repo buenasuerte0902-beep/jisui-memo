@@ -209,6 +209,12 @@ button {
   box-shadow: var(--shadow);
 }
 
+.list-item.editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
 .list-item-main {
   flex: 1;
   min-width: 0;
@@ -247,7 +253,13 @@ button {
 .icon-btn:hover { color: var(--color-text); }
 
 .store-detail-title h2 {
-  margin: 0 0 2px;
+  margin: 0;
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .muted {

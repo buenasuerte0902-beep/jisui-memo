@@ -53,6 +53,7 @@
     data: loadData(),
     currentStoreId: null,
     currentView: 'stores',
+    editingStoreId: null,
   };
 
   // ---------- Toast ----------
@@ -97,8 +98,23 @@
     emptyEl.classList.toggle('hidden', stores.length > 0);
 
     for (const store of stores) {
-      const count = state.data.items.filter((i) => i.storeId === store.id).length;
       const li = document.createElement('li');
+
+      if (store.id === state.editingStoreId) {
+        li.className = 'list-item editing';
+        li.innerHTML = `
+          <input type="text" class="edit-store-name" value="${escapeHtml(store.name)}" placeholder="店舗名">
+          <input type="text" class="edit-store-memo" value="${escapeHtml(store.memo || '')}" placeholder="場所・メモ（任意）">
+          <div class="btn-row">
+            <button class="btn-primary" data-action="save-store-edit" data-id="${store.id}">保存</button>
+            <button class="btn-secondary" data-action="cancel-store-edit">キャンセル</button>
+          </div>
+        `;
+        listEl.appendChild(li);
+        continue;
+      }
+
+      const count = state.data.items.filter((i) => i.storeId === store.id).length;
       li.className = 'list-item';
       li.innerHTML = `
         <div class="list-item-main">
@@ -106,12 +122,48 @@
           <div class="list-item-sub">${escapeHtml(store.memo || '')}${store.memo ? ' ・ ' : ''}記録 ${count}件</div>
         </div>
         <div class="item-actions">
+          <button class="icon-btn" data-action="edit-store" data-id="${store.id}" title="編集">✏️</button>
           <button class="icon-btn" data-action="delete-store" data-id="${store.id}" title="削除">🗑</button>
         </div>
       `;
       li.querySelector('.list-item-main').addEventListener('click', () => openStoreDetail(store.id));
       listEl.appendChild(li);
     }
+
+    listEl.querySelectorAll('[data-action="edit-store"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.editingStoreId = btn.dataset.id;
+        renderStoreList();
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="cancel-store-edit"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.editingStoreId = null;
+        renderStoreList();
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="save-store-edit"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const store = state.data.stores.find((s) => s.id === id);
+        if (!store) return;
+        const li = btn.closest('.list-item');
+        const name = li.querySelector('.edit-store-name').value.trim();
+        const memo = li.querySelector('.edit-store-memo').value.trim();
+        if (!name) return;
+        store.name = name;
+        store.memo = memo;
+        saveData();
+        state.editingStoreId = null;
+        renderStoreList();
+        showToast('店舗情報を更新しました');
+      });
+    });
 
     listEl.querySelectorAll('[data-action="delete-store"]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
@@ -158,11 +210,45 @@
     document.getElementById('storeDetailScreen').classList.remove('hidden');
     document.getElementById('detailStoreName').textContent = store.name;
     document.getElementById('detailStoreMemo').textContent = store.memo || '';
+    document.getElementById('storeDetailTitle').classList.remove('hidden');
+    document.getElementById('editStoreForm').classList.add('hidden');
     document.getElementById('itemDate').value = todayStr();
     document.getElementById('itemFilter').value = '';
     renderItemNameSuggestions();
     renderItemList();
   }
+
+  document.getElementById('editStoreBtn').addEventListener('click', () => {
+    const store = state.data.stores.find((s) => s.id === state.currentStoreId);
+    if (!store) return;
+    document.getElementById('editStoreName').value = store.name;
+    document.getElementById('editStoreMemo').value = store.memo || '';
+    document.getElementById('storeDetailTitle').classList.add('hidden');
+    document.getElementById('editStoreForm').classList.remove('hidden');
+    document.getElementById('editStoreName').focus();
+  });
+
+  document.getElementById('cancelEditStoreBtn').addEventListener('click', () => {
+    document.getElementById('editStoreForm').classList.add('hidden');
+    document.getElementById('storeDetailTitle').classList.remove('hidden');
+  });
+
+  document.getElementById('editStoreForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const store = state.data.stores.find((s) => s.id === state.currentStoreId);
+    if (!store) return;
+    const name = document.getElementById('editStoreName').value.trim();
+    const memo = document.getElementById('editStoreMemo').value.trim();
+    if (!name) return;
+    store.name = name;
+    store.memo = memo;
+    saveData();
+    document.getElementById('detailStoreName').textContent = store.name;
+    document.getElementById('detailStoreMemo').textContent = store.memo || '';
+    document.getElementById('editStoreForm').classList.add('hidden');
+    document.getElementById('storeDetailTitle').classList.remove('hidden');
+    showToast('店舗情報を更新しました');
+  });
 
   document.getElementById('backToStores').addEventListener('click', () => {
     state.currentStoreId = null;

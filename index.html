@@ -41,10 +41,26 @@
 
     <div id="storeDetailScreen" class="hidden">
       <button id="backToStores" class="btn-back">← 店舗一覧に戻る</button>
-      <div class="store-detail-title">
-        <h2 id="detailStoreName"></h2>
+      <div class="store-detail-title" id="storeDetailTitle">
+        <div class="detail-title-row">
+          <h2 id="detailStoreName"></h2>
+          <button id="editStoreBtn" class="icon-btn" title="店舗名を編集">✏️</button>
+        </div>
         <p id="detailStoreMemo" class="muted"></p>
       </div>
+
+      <form id="editStoreForm" class="card hidden">
+        <div class="form-row">
+          <input type="text" id="editStoreName" placeholder="店舗名" required>
+        </div>
+        <div class="form-row">
+          <input type="text" id="editStoreMemo" placeholder="場所・メモ（任意）">
+        </div>
+        <div class="btn-row">
+          <button type="submit" class="btn-primary">保存</button>
+          <button type="button" id="cancelEditStoreBtn" class="btn-secondary">キャンセル</button>
+        </div>
+      </form>
 
       <form id="itemForm" class="card">
         <div class="form-row">
