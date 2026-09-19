@@ -126,8 +126,7 @@
     <div id="recipeListScreen">
       <form id="recipeForm" class="card form-inline">
         <input type="text" id="recipeName" placeholder="レシピ名（例: 豚こま肉の生姜焼き）" required>
-        <input type="text" id="recipeMemo" placeholder="作り方・メモ（任意）">
-        <button type="submit" class="btn-primary">追加</button>
+        <button type="submit" class="btn-primary">レシピを作成</button>
       </form>
       <ul id="recipeList" class="list"></ul>
       <p id="recipeEmpty" class="empty-msg">まだレシピが登録されていません。上のフォームから追加してください。</p>
@@ -140,7 +139,7 @@
           <h2 id="detailRecipeName"></h2>
           <button id="editRecipeBtn" class="icon-btn" title="レシピを編集">✏️</button>
         </div>
-        <p id="detailRecipeMemo" class="muted"></p>
+        <p id="detailRecipeServings" class="muted"></p>
       </div>
 
       <form id="editRecipeForm" class="card hidden">
@@ -148,7 +147,7 @@
           <input type="text" id="editRecipeName" placeholder="レシピ名" required>
         </div>
         <div class="form-row">
-          <input type="text" id="editRecipeMemo" placeholder="作り方・メモ（任意）">
+          <input type="text" id="editRecipeServings" placeholder="人数（例: 2人分）">
         </div>
         <div class="btn-row">
           <button type="submit" class="btn-primary">保存</button>
@@ -156,6 +155,11 @@
         </div>
       </form>
 
+      <div class="btn-row recipe-shopping-row">
+        <button id="addIngredientsToShoppingBtn" class="btn-primary">🛒 材料を買い物リストに追加</button>
+      </div>
+
+      <h3 class="section-heading">材料</h3>
       <form id="ingredientForm" class="card">
         <div class="form-row two-col">
           <input type="text" id="ingredientName" placeholder="材料名（例: 豚こま肉）" required list="itemNameSuggestions">
@@ -163,13 +167,18 @@
         </div>
         <button type="submit" class="btn-primary">材料を追加</button>
       </form>
-
-      <ul id="ingredientList" class="list"></ul>
+      <ul id="ingredientList" class="list ingredient-list"></ul>
       <p id="ingredientEmpty" class="empty-msg">まだ材料が登録されていません。</p>
 
-      <div class="btn-row">
-        <button id="addIngredientsToShoppingBtn" class="btn-primary">買い物リストに追加</button>
-      </div>
+      <h3 class="section-heading">作り方</h3>
+      <form id="stepForm" class="card">
+        <div class="form-row">
+          <textarea id="stepText" placeholder="手順を入力（例: 豚肉に下味をつける）" rows="2" required></textarea>
+        </div>
+        <button type="submit" class="btn-primary">手順を追加</button>
+      </form>
+      <ol id="stepList" class="list step-list"></ol>
+      <p id="stepEmpty" class="empty-msg">まだ手順が登録されていません。</p>
     </div>
   </section>
 

@@ -126,7 +126,7 @@ input, select, button {
   font-family: inherit;
 }
 
-input[type="text"], input[type="number"], input[type="date"], select {
+input[type="text"], input[type="number"], input[type="date"], input[type="url"], select, textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--color-border);
@@ -135,7 +135,12 @@ input[type="text"], input[type="number"], input[type="date"], select {
   color: var(--color-text);
 }
 
-input:focus, select:focus {
+textarea {
+  resize: vertical;
+  min-height: 44px;
+}
+
+input:focus, select:focus, textarea:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: -1px;
 }
@@ -251,6 +256,85 @@ button {
   padding: 4px 6px;
 }
 .icon-btn:hover { color: var(--color-text); }
+
+.section-heading {
+  margin: 20px 0 10px;
+  font-size: 1rem;
+  color: var(--color-text);
+  border-left: 4px solid var(--color-primary);
+  padding-left: 8px;
+}
+
+.recipe-shopping-row {
+  margin-top: 4px;
+}
+.recipe-shopping-row .btn-primary {
+  width: 100%;
+}
+
+.ingredient-list .list-item {
+  padding: 10px 14px;
+}
+
+.ingredient-row {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ingredient-row .ingredient-name {
+  font-weight: 500;
+}
+
+.ingredient-row .ingredient-qty {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.step-list {
+  counter-reset: step;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.step-number {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-text {
+  flex: 1;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.step-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.step-actions .icon-btn {
+  font-size: 0.9rem;
+  padding: 2px 4px;
+}
 
 .store-detail-title h2 {
   margin: 0;

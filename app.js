@@ -7,7 +7,23 @@
   /** @typedef {{id:string, storeId:string, name:string, price:number, unit:string, note:string, date:string, createdAt:string}} Item */
   /** @typedef {{id:string, name:string, qty:string, checked:boolean, createdAt:string}} ShoppingItem */
   /** @typedef {{id:string, name:string, qty:string}} Ingredient */
-  /** @typedef {{id:string, name:string, memo:string, ingredients:Ingredient[], createdAt:string}} Recipe */
+  /** @typedef {{id:string, text:string}} Step */
+  /** @typedef {{id:string, name:string, servings:string, ingredients:Ingredient[], steps:Step[], createdAt:string}} Recipe */
+
+  // Recipes from before servings/steps existed had a single freeform "memo"
+  // field; fold it into a one-item steps list so old data keeps showing.
+  function migrateRecipe(recipe) {
+    return {
+      id: recipe.id,
+      name: recipe.name,
+      servings: recipe.servings || '',
+      ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+      steps: Array.isArray(recipe.steps)
+        ? recipe.steps
+        : (recipe.memo ? [{ id: uid(), text: recipe.memo }] : []),
+      createdAt: recipe.createdAt,
+    };
+  }
 
   function loadData() {
     try {
@@ -18,7 +34,7 @@
         stores: Array.isArray(parsed.stores) ? parsed.stores : [],
         items: Array.isArray(parsed.items) ? parsed.items : [],
         shoppingList: Array.isArray(parsed.shoppingList) ? parsed.shoppingList : [],
-        recipes: Array.isArray(parsed.recipes) ? parsed.recipes : [],
+        recipes: (Array.isArray(parsed.recipes) ? parsed.recipes : []).map(migrateRecipe),
       };
     } catch (e) {
       console.error('Failed to load data', e);
@@ -530,10 +546,14 @@
     for (const recipe of recipes) {
       const li = document.createElement('li');
       li.className = 'list-item';
+      const subParts = [];
+      if (recipe.servings) subParts.push(recipe.servings);
+      subParts.push(`材料 ${recipe.ingredients.length}点`);
+      subParts.push(`手順 ${recipe.steps.length}件`);
       li.innerHTML = `
         <div class="list-item-main">
           <div class="list-item-title">${escapeHtml(recipe.name)}</div>
-          <div class="list-item-sub">材料 ${recipe.ingredients.length}点</div>
+          <div class="list-item-sub">${subParts.map(escapeHtml).join(' ・ ')}</div>
         </div>
         <div class="item-actions">
           <button class="icon-btn" data-action="delete-recipe" data-id="${recipe.id}" title="削除">🗑</button>
@@ -561,21 +581,22 @@
   document.getElementById('recipeForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const nameEl = document.getElementById('recipeName');
-    const memoEl = document.getElementById('recipeMemo');
     const name = nameEl.value.trim();
     if (!name) return;
-    state.data.recipes.push({
+    const recipe = {
       id: uid(),
       name,
-      memo: memoEl.value.trim(),
+      servings: '',
       ingredients: [],
+      steps: [],
       createdAt: new Date().toISOString(),
-    });
+    };
+    state.data.recipes.push(recipe);
     saveData();
     nameEl.value = '';
-    memoEl.value = '';
-    renderRecipeList();
-    showToast('レシピを追加しました');
+    // Jump straight into the detail screen so the ingredients/steps can be
+    // filled in right away instead of asking for everything on one form.
+    openRecipeDetail(recipe.id);
   });
 
   // ---------- Recipe detail ----------
@@ -586,11 +607,12 @@
     document.getElementById('recipeListScreen').classList.add('hidden');
     document.getElementById('recipeDetailScreen').classList.remove('hidden');
     document.getElementById('detailRecipeName').textContent = recipe.name;
-    document.getElementById('detailRecipeMemo').textContent = recipe.memo || '';
+    document.getElementById('detailRecipeServings').textContent = recipe.servings || '';
     document.getElementById('recipeDetailTitle').classList.remove('hidden');
     document.getElementById('editRecipeForm').classList.add('hidden');
     renderItemNameSuggestions();
     renderIngredientList();
+    renderStepList();
   }
 
   document.getElementById('backToRecipes').addEventListener('click', () => {
@@ -604,7 +626,7 @@
     const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
     if (!recipe) return;
     document.getElementById('editRecipeName').value = recipe.name;
-    document.getElementById('editRecipeMemo').value = recipe.memo || '';
+    document.getElementById('editRecipeServings').value = recipe.servings || '';
     document.getElementById('recipeDetailTitle').classList.add('hidden');
     document.getElementById('editRecipeForm').classList.remove('hidden');
     document.getElementById('editRecipeName').focus();
@@ -620,18 +642,19 @@
     const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
     if (!recipe) return;
     const name = document.getElementById('editRecipeName').value.trim();
-    const memo = document.getElementById('editRecipeMemo').value.trim();
+    const servings = document.getElementById('editRecipeServings').value.trim();
     if (!name) return;
     recipe.name = name;
-    recipe.memo = memo;
+    recipe.servings = servings;
     saveData();
     document.getElementById('detailRecipeName').textContent = recipe.name;
-    document.getElementById('detailRecipeMemo').textContent = recipe.memo || '';
+    document.getElementById('detailRecipeServings').textContent = recipe.servings || '';
     document.getElementById('editRecipeForm').classList.add('hidden');
     document.getElementById('recipeDetailTitle').classList.remove('hidden');
     showToast('レシピを更新しました');
   });
 
+  // ---------- Ingredients ----------
   function renderIngredientList() {
     const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
     const listEl = document.getElementById('ingredientList');
@@ -645,9 +668,9 @@
       const li = document.createElement('li');
       li.className = 'list-item';
       li.innerHTML = `
-        <div class="list-item-main">
-          <div class="list-item-title">${escapeHtml(ing.name)}</div>
-          ${ing.qty ? `<div class="list-item-sub">${escapeHtml(ing.qty)}</div>` : ''}
+        <div class="ingredient-row">
+          <span class="ingredient-name">${escapeHtml(ing.name)}</span>
+          ${ing.qty ? `<span class="ingredient-qty">${escapeHtml(ing.qty)}</span>` : ''}
         </div>
         <div class="item-actions">
           <button class="icon-btn" data-action="delete-ingredient" data-id="${ing.id}" title="削除">🗑</button>
@@ -661,6 +684,7 @@
         recipe.ingredients = recipe.ingredients.filter((i) => i.id !== btn.dataset.id);
         saveData();
         renderIngredientList();
+        renderRecipeList();
       });
     });
   }
@@ -702,6 +726,76 @@
     }
     saveData();
     showToast(addedCount > 0 ? `${addedCount}件を買い物リストに追加しました` : 'すべて追加済みです');
+  });
+
+  // ---------- Steps ----------
+  function renderStepList() {
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    const listEl = document.getElementById('stepList');
+    const emptyEl = document.getElementById('stepEmpty');
+    if (!recipe) return;
+
+    listEl.innerHTML = '';
+    emptyEl.classList.toggle('hidden', recipe.steps.length > 0);
+
+    recipe.steps.forEach((step, index) => {
+      const li = document.createElement('li');
+      li.className = 'list-item step-item';
+      li.innerHTML = `
+        <div class="step-number">${index + 1}</div>
+        <div class="step-text">${escapeHtml(step.text)}</div>
+        <div class="step-actions">
+          <button class="icon-btn" data-action="move-step-up" data-id="${step.id}" title="上に移動" ${index === 0 ? 'disabled' : ''}>▲</button>
+          <button class="icon-btn" data-action="move-step-down" data-id="${step.id}" title="下に移動" ${index === recipe.steps.length - 1 ? 'disabled' : ''}>▼</button>
+        </div>
+        <button class="icon-btn" data-action="delete-step" data-id="${step.id}" title="削除">🗑</button>
+      `;
+      listEl.appendChild(li);
+    });
+
+    listEl.querySelectorAll('[data-action="delete-step"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        recipe.steps = recipe.steps.filter((s) => s.id !== btn.dataset.id);
+        saveData();
+        renderStepList();
+        renderRecipeList();
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="move-step-up"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = recipe.steps.findIndex((s) => s.id === btn.dataset.id);
+        if (idx <= 0) return;
+        [recipe.steps[idx - 1], recipe.steps[idx]] = [recipe.steps[idx], recipe.steps[idx - 1]];
+        saveData();
+        renderStepList();
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="move-step-down"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = recipe.steps.findIndex((s) => s.id === btn.dataset.id);
+        if (idx === -1 || idx >= recipe.steps.length - 1) return;
+        [recipe.steps[idx + 1], recipe.steps[idx]] = [recipe.steps[idx], recipe.steps[idx + 1]];
+        saveData();
+        renderStepList();
+      });
+    });
+  }
+
+  document.getElementById('stepForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    if (!recipe) return;
+    const textEl = document.getElementById('stepText');
+    const text = textEl.value.trim();
+    if (!text) return;
+    recipe.steps.push({ id: uid(), text });
+    saveData();
+    textEl.value = '';
+    textEl.focus();
+    renderStepList();
+    renderRecipeList();
   });
 
   // ---------- Settings: export / import / clear ----------
