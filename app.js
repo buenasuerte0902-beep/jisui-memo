@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = 'jisui_memo_data_v1';
 
-  /** @typedef {{id:string, name:string, memo:string, createdAt:string}} Store */
+  /** @typedef {{id:string, name:string, memo:string, flyerUrl:string, createdAt:string}} Store */
   /** @typedef {{id:string, storeId:string, name:string, price:number, unit:string, note:string, date:string, createdAt:string}} Item */
   /** @typedef {{id:string, name:string, qty:string, checked:boolean, createdAt:string}} ShoppingItem */
   /** @typedef {{id:string, name:string, qty:string}} Ingredient */
@@ -115,6 +115,7 @@
         li.innerHTML = `
           <input type="text" class="edit-store-name" value="${escapeHtml(store.name)}" placeholder="店舗名">
           <input type="text" class="edit-store-memo" value="${escapeHtml(store.memo || '')}" placeholder="場所・メモ（任意）">
+          <input type="url" class="edit-store-flyer" value="${escapeHtml(store.flyerUrl || '')}" placeholder="チラシURL（任意、例: Shufoo!のページ）">
           <div class="btn-row">
             <button class="btn-primary" data-action="save-store-edit" data-id="${store.id}">保存</button>
             <button class="btn-secondary" data-action="cancel-store-edit">キャンセル</button>
@@ -132,6 +133,7 @@
           <div class="list-item-sub">${escapeHtml(store.memo || '')}${store.memo ? ' ・ ' : ''}記録 ${count}件</div>
         </div>
         <div class="item-actions">
+          ${store.flyerUrl ? `<a class="icon-btn" href="${escapeHtml(store.flyerUrl)}" target="_blank" rel="noopener noreferrer" title="チラシを見る" onclick="event.stopPropagation()">🛒</a>` : ''}
           <button class="icon-btn" data-action="edit-store" data-id="${store.id}" title="編集">✏️</button>
           <button class="icon-btn" data-action="delete-store" data-id="${store.id}" title="削除">🗑</button>
         </div>
@@ -165,9 +167,11 @@
         const li = btn.closest('.list-item');
         const name = li.querySelector('.edit-store-name').value.trim();
         const memo = li.querySelector('.edit-store-memo').value.trim();
+        const flyerUrl = li.querySelector('.edit-store-flyer').value.trim();
         if (!name) return;
         store.name = name;
         store.memo = memo;
+        store.flyerUrl = flyerUrl;
         saveData();
         state.editingStoreId = null;
         renderStoreList();
@@ -195,18 +199,21 @@
     e.preventDefault();
     const nameEl = document.getElementById('storeName');
     const memoEl = document.getElementById('storeMemo');
+    const flyerUrlEl = document.getElementById('storeFlyerUrl');
     const name = nameEl.value.trim();
     if (!name) return;
     const store = {
       id: uid(),
       name,
       memo: memoEl.value.trim(),
+      flyerUrl: flyerUrlEl.value.trim(),
       createdAt: new Date().toISOString(),
     };
     state.data.stores.push(store);
     saveData();
     nameEl.value = '';
     memoEl.value = '';
+    flyerUrlEl.value = '';
     renderStoreList();
     showToast('店舗を追加しました');
   });
@@ -220,6 +227,9 @@
     document.getElementById('storeDetailScreen').classList.remove('hidden');
     document.getElementById('detailStoreName').textContent = store.name;
     document.getElementById('detailStoreMemo').textContent = store.memo || '';
+    const flyerLink = document.getElementById('detailStoreFlyerLink');
+    flyerLink.classList.toggle('hidden', !store.flyerUrl);
+    flyerLink.href = store.flyerUrl || '#';
     document.getElementById('storeDetailTitle').classList.remove('hidden');
     document.getElementById('editStoreForm').classList.add('hidden');
     document.getElementById('itemDate').value = todayStr();
@@ -233,6 +243,7 @@
     if (!store) return;
     document.getElementById('editStoreName').value = store.name;
     document.getElementById('editStoreMemo').value = store.memo || '';
+    document.getElementById('editStoreFlyerUrl').value = store.flyerUrl || '';
     document.getElementById('storeDetailTitle').classList.add('hidden');
     document.getElementById('editStoreForm').classList.remove('hidden');
     document.getElementById('editStoreName').focus();
@@ -249,12 +260,17 @@
     if (!store) return;
     const name = document.getElementById('editStoreName').value.trim();
     const memo = document.getElementById('editStoreMemo').value.trim();
+    const flyerUrl = document.getElementById('editStoreFlyerUrl').value.trim();
     if (!name) return;
     store.name = name;
     store.memo = memo;
+    store.flyerUrl = flyerUrl;
     saveData();
     document.getElementById('detailStoreName').textContent = store.name;
     document.getElementById('detailStoreMemo').textContent = store.memo || '';
+    const flyerLink = document.getElementById('detailStoreFlyerLink');
+    flyerLink.classList.toggle('hidden', !store.flyerUrl);
+    flyerLink.href = store.flyerUrl || '#';
     document.getElementById('editStoreForm').classList.add('hidden');
     document.getElementById('storeDetailTitle').classList.remove('hidden');
     showToast('店舗情報を更新しました');

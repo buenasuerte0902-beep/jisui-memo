@@ -262,6 +262,14 @@ button {
   gap: 6px;
 }
 
+.flyer-link {
+  display: inline-block;
+  text-decoration: none;
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
 .muted {
   color: var(--color-muted);
   font-size: 0.9rem;

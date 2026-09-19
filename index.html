@@ -34,6 +34,7 @@
       <form id="storeForm" class="card form-inline">
         <input type="text" id="storeName" placeholder="店舗名（例: 〇〇スーパー△△店）" required>
         <input type="text" id="storeMemo" placeholder="場所・メモ（任意）">
+        <input type="url" id="storeFlyerUrl" placeholder="チラシURL（任意、例: Shufoo!のページ）">
         <button type="submit" class="btn-primary">追加</button>
       </form>
       <ul id="storeList" class="list"></ul>
@@ -48,6 +49,7 @@
           <button id="editStoreBtn" class="icon-btn" title="店舗名を編集">✏️</button>
         </div>
         <p id="detailStoreMemo" class="muted"></p>
+        <a id="detailStoreFlyerLink" class="btn-secondary flyer-link hidden" target="_blank" rel="noopener noreferrer">🛒 チラシを見る</a>
       </div>
 
       <form id="editStoreForm" class="card hidden">
@@ -56,6 +58,9 @@
         </div>
         <div class="form-row">
           <input type="text" id="editStoreMemo" placeholder="場所・メモ（任意）">
+        </div>
+        <div class="form-row">
+          <input type="url" id="editStoreFlyerUrl" placeholder="チラシURL（任意、例: Shufoo!のページ）">
         </div>
         <div class="btn-row">
           <button type="submit" class="btn-primary">保存</button>
