@@ -191,14 +191,14 @@
     { name: '里芋', unit: '1袋', price: 200 },
     { name: '長芋', unit: '1本', price: 250 },
     { name: 'にんじん', unit: '1個', price: 40 },
-    { name: 'キャベツ', unit: '1個', price: 180 },
-    { name: '紫キャベツ', unit: '1個', price: 200 },
-    { name: '白菜', unit: '1個', price: 250 },
-    { name: 'レタス', unit: '1個', price: 150 },
-    { name: 'サニーレタス', unit: '1個', price: 150 },
+    { name: 'キャベツ', unit: '1個', price: 180, piecesPerUnit: 15 },
+    { name: '紫キャベツ', unit: '1個', price: 200, piecesPerUnit: 15 },
+    { name: '白菜', unit: '1個', price: 250, piecesPerUnit: 15 },
+    { name: 'レタス', unit: '1個', price: 150, piecesPerUnit: 10 },
+    { name: 'サニーレタス', unit: '1個', price: 150, piecesPerUnit: 10 },
     { name: 'きゅうり', unit: '1本', price: 40 },
     { name: 'トマト', unit: '1個', price: 60 },
-    { name: 'ミニトマト', unit: '1パック', price: 250 },
+    { name: 'ミニトマト', unit: '1パック', price: 250, piecesPerUnit: 20 },
     { name: 'なす', unit: '1本', price: 40 },
     { name: 'ピーマン', unit: '1袋', price: 100 },
     { name: 'パプリカ', unit: '1個', price: 100 },
@@ -223,9 +223,9 @@
     { name: 'まいたけ', unit: '1パック', price: 150 },
     { name: 'エリンギ', unit: '1パック', price: 150 },
     { name: 'マッシュルーム', unit: '1パック', price: 200 },
-    { name: 'にんにく', unit: '1個', price: 60 },
-    { name: 'しょうが', unit: '1個', price: 60 },
-    { name: 'みょうが', unit: '1袋', price: 150 },
+    { name: 'にんにく', unit: '1個', price: 60, piecesPerUnit: 8 },
+    { name: 'しょうが', unit: '1個', price: 60, piecesPerUnit: 6 },
+    { name: 'みょうが', unit: '1袋', price: 150, piecesPerUnit: 5 },
     { name: 'アボカド', unit: '1個', price: 150 },
     { name: 'ブロッコリー', unit: '1個', price: 200 },
     { name: 'カリフラワー', unit: '1個', price: 250 },
@@ -239,7 +239,7 @@
     { name: 'セロリ', unit: '1本', price: 100 },
     { name: 'パクチー', unit: '1袋', price: 150 },
     { name: 'バジル', unit: '1袋', price: 150 },
-    { name: '大葉', unit: '1袋', price: 100 },
+    { name: '大葉', unit: '1袋', price: 100, piecesPerUnit: 10 },
     { name: 'パセリ', unit: '1袋', price: 100 },
     { name: 'たけのこ', unit: '1個', price: 300 },
     // 果物
@@ -292,61 +292,65 @@
     { name: 'おから', unit: '1パック', price: 80 },
     { name: '湯葉', unit: '1パック', price: 200 },
     // 調味料
-    { name: '醤油', unit: '1本', price: 300 },
-    { name: '薄口醤油', unit: '1本', price: 300 },
-    { name: '味噌', unit: '1個', price: 350 },
-    { name: '白味噌', unit: '1個', price: 350 },
-    { name: 'みりん', unit: '1本', price: 300 },
-    { name: '料理酒', unit: '1本', price: 250 },
+    // mlPerUnit is an approximate typical bottle/jar size in ml — it lets a
+    // recipe qty like "大さじ1"/"小さじ1"/"少々" scale down from the whole-
+    // container reference price instead of being charged the full price.
+    { name: '醤油', unit: '1本', price: 300, mlPerUnit: 1000 },
+    { name: '薄口醤油', unit: '1本', price: 300, mlPerUnit: 1000 },
+    { name: '味噌', unit: '1個', price: 350, mlPerUnit: 750 },
+    { name: '白味噌', unit: '1個', price: 350, mlPerUnit: 750 },
+    { name: 'みりん', unit: '1本', price: 300, mlPerUnit: 500 },
+    { name: '料理酒', unit: '1本', price: 250, mlPerUnit: 500 },
     { name: '砂糖', unit: '1kg', price: 250 },
-    { name: '塩', unit: '1袋', price: 150 },
-    { name: '胡椒', unit: '1個', price: 250 },
-    { name: 'サラダ油', unit: '1本', price: 350 },
-    { name: 'ごま油', unit: '1本', price: 400 },
-    { name: 'オリーブオイル', unit: '1本', price: 400 },
-    { name: 'なたね油', unit: '1本', price: 350 },
-    { name: '酢', unit: '1本', price: 250 },
-    { name: '米酢', unit: '1本', price: 300 },
-    { name: 'バルサミコ酢', unit: '1本', price: 500 },
-    { name: 'マヨネーズ', unit: '1本', price: 300 },
-    { name: 'ケチャップ', unit: '1本', price: 250 },
-    { name: 'ウスターソース', unit: '1本', price: 250 },
-    { name: '中濃ソース', unit: '1本', price: 250 },
-    { name: 'とんかつソース', unit: '1本', price: 250 },
-    { name: 'コンソメ', unit: '1個', price: 200 },
-    { name: '鶏がらスープの素', unit: '1個', price: 250 },
+    { name: '塩', unit: '1袋', price: 150, mlPerUnit: 300 },
+    { name: '胡椒', unit: '1個', price: 250, mlPerUnit: 100 },
+    { name: 'サラダ油', unit: '1本', price: 350, mlPerUnit: 600 },
+    { name: 'ごま油', unit: '1本', price: 400, mlPerUnit: 300 },
+    { name: 'オリーブオイル', unit: '1本', price: 400, mlPerUnit: 400 },
+    { name: 'なたね油', unit: '1本', price: 350, mlPerUnit: 600 },
+    { name: '酢', unit: '1本', price: 250, mlPerUnit: 500 },
+    { name: '米酢', unit: '1本', price: 300, mlPerUnit: 500 },
+    { name: 'バルサミコ酢', unit: '1本', price: 500, mlPerUnit: 250 },
+    { name: 'マヨネーズ', unit: '1本', price: 300, mlPerUnit: 350 },
+    { name: 'ケチャップ', unit: '1本', price: 250, mlPerUnit: 300 },
+    { name: 'ウスターソース', unit: '1本', price: 250, mlPerUnit: 300 },
+    { name: '中濃ソース', unit: '1本', price: 250, mlPerUnit: 300 },
+    { name: 'とんかつソース', unit: '1本', price: 250, mlPerUnit: 300 },
+    { name: 'コンソメ', unit: '1個', price: 200, mlPerUnit: 100 },
+    { name: '鶏がらスープの素', unit: '1個', price: 250, mlPerUnit: 100 },
     { name: 'カレールー', unit: '1個', price: 250 },
     { name: 'ハヤシルー', unit: '1個', price: 250 },
-    { name: 'めんつゆ', unit: '1本', price: 300 },
-    { name: 'ポン酢', unit: '1本', price: 250 },
-    { name: 'オイスターソース', unit: '1本', price: 300 },
-    { name: '豆板醤', unit: '1個', price: 300 },
-    { name: 'コチュジャン', unit: '1個', price: 300 },
-    { name: '甜麺醤', unit: '1個', price: 300 },
-    { name: '練りごま', unit: '1個', price: 300 },
-    { name: 'すりごま', unit: '1袋', price: 200 },
-    { name: 'いりごま', unit: '1袋', price: 200 },
-    { name: 'からし', unit: '1個', price: 200 },
-    { name: 'わさび', unit: '1個', price: 200 },
-    { name: '七味唐辛子', unit: '1個', price: 200 },
-    { name: '一味唐辛子', unit: '1個', price: 200 },
-    { name: 'カレー粉', unit: '1個', price: 250 },
-    { name: 'シナモン', unit: '1個', price: 250 },
+    { name: 'めんつゆ', unit: '1本', price: 300, mlPerUnit: 500 },
+    { name: 'ポン酢', unit: '1本', price: 250, mlPerUnit: 360 },
+    { name: 'オイスターソース', unit: '1本', price: 300, mlPerUnit: 300 },
+    { name: '豆板醤', unit: '1個', price: 300, mlPerUnit: 100 },
+    { name: 'コチュジャン', unit: '1個', price: 300, mlPerUnit: 100 },
+    { name: '甜麺醤', unit: '1個', price: 300, mlPerUnit: 100 },
+    { name: '練りごま', unit: '1個', price: 300, mlPerUnit: 100 },
+    { name: 'すりごま', unit: '1袋', price: 200, mlPerUnit: 100 },
+    { name: 'いりごま', unit: '1袋', price: 200, mlPerUnit: 100 },
+    { name: 'からし', unit: '1個', price: 200, mlPerUnit: 100 },
+    { name: 'わさび', unit: '1個', price: 200, mlPerUnit: 100 },
+    { name: '七味唐辛子', unit: '1個', price: 200, mlPerUnit: 60 },
+    { name: '一味唐辛子', unit: '1個', price: 200, mlPerUnit: 60 },
+    { name: 'カレー粉', unit: '1個', price: 250, mlPerUnit: 100 },
+    { name: 'シナモン', unit: '1個', price: 250, mlPerUnit: 60 },
     { name: '片栗粉', unit: '1袋', price: 150 },
     { name: '小麦粉', unit: '1袋', price: 200 },
     { name: '薄力粉', unit: '1袋', price: 200 },
     { name: '強力粉', unit: '1袋', price: 250 },
     { name: 'ホットケーキミックス', unit: '1袋', price: 200 },
-    { name: 'ベーキングパウダー', unit: '1個', price: 150 },
+    { name: 'ベーキングパウダー', unit: '1個', price: 150, mlPerUnit: 100 },
     { name: '重曹', unit: '1袋', price: 150 },
     { name: 'ゼラチン', unit: '1袋', price: 200 },
     { name: '寒天', unit: '1袋', price: 150 },
-    { name: 'はちみつ', unit: '1本', price: 400 },
-    { name: 'メープルシロップ', unit: '1本', price: 400 },
-    { name: 'ジャム', unit: '1個', price: 300 },
-    { name: 'ピーナッツバター', unit: '1個', price: 350 },
-    { name: '顆粒だし', unit: '1個', price: 300 },
-    { name: '白だし', unit: '1本', price: 350 },
+    { name: 'はちみつ', unit: '1本', price: 400, mlPerUnit: 300 },
+    { name: 'メープルシロップ', unit: '1本', price: 400, mlPerUnit: 200 },
+    { name: 'ジャム', unit: '1個', price: 300, mlPerUnit: 300 },
+    { name: 'ピーナッツバター', unit: '1個', price: 350, mlPerUnit: 350 },
+    { name: 'レモン汁', unit: '1本', price: 200, mlPerUnit: 150 },
+    { name: '顆粒だし', unit: '1個', price: 300, mlPerUnit: 100 },
+    { name: '白だし', unit: '1本', price: 350, mlPerUnit: 500 },
     { name: '昆布だし', unit: '1個', price: 300 },
     { name: 'かつおだし', unit: '1個', price: 300 },
     { name: '塩昆布', unit: '1袋', price: 300 },
@@ -432,28 +436,68 @@
     }
   }
 
-  // Parses a freeform quantity string (e.g. "200g", "1個", "大さじ2") into a
-  // base-unit amount. Returns null when it can't confidently parse a number.
+  // "半" (half) or a "n/m" fraction or a plain decimal, as used in spoon/cup
+  // measures like "大さじ1/2" or "小さじ半".
+  function parseFraction(token) {
+    if (token === '半') return 0.5;
+    if (token.includes('/')) {
+      const [n, d] = token.split('/').map(Number);
+      return d ? n / d : 1;
+    }
+    const n = parseFloat(token);
+    return Number.isFinite(n) ? n : 1;
+  }
+
+  // Parses a freeform quantity string (e.g. "200g", "1個", "大さじ2",
+  // "少々") into a base-unit amount. 大さじ/小さじ/カップ are precise
+  // volume measures (15ml/5ml/200ml) regardless of whether the ingredient
+  // is a liquid or a powder — that's what the measuring spoon itself is.
+  // "少々"/"ひとつまみ"/"適量" are real but deliberately vague amounts,
+  // returned as their own 'trace' type rather than guessed as a number.
+  // Returns null when it can't confidently parse anything at all.
   function parseQty(qtyStr) {
     if (!qtyStr) return null;
-    const m = qtyStr.trim().match(/^([0-9]+(?:\.[0-9]+)?)\s*(kg|g|l|ml|cc|個|コ|パック|本|袋|枚|玉|片|かけ|束)?/i);
+    const s = qtyStr.trim();
+
+    if (/^(少々|ひとつまみ|ひと\s*つまみ|適量|お好みで|適宜)/.test(s)) {
+      return { type: 'trace', amount: 1 };
+    }
+
+    const numOrFrac = '([0-9]+(?:\\.[0-9]+)?|[0-9]+\\/[0-9]+|半)';
+    let m = s.match(new RegExp('^大さじ\\s*' + numOrFrac));
+    if (m) return { type: 'volume', amount: parseFraction(m[1]) * 15 };
+    m = s.match(new RegExp('^小さじ\\s*' + numOrFrac));
+    if (m) return { type: 'volume', amount: parseFraction(m[1]) * 5 };
+    m = s.match(new RegExp('^カップ\\s*' + numOrFrac));
+    if (m) return { type: 'volume', amount: parseFraction(m[1]) * 200 };
+
+    m = s.match(/^([0-9]+(?:\.[0-9]+)?|[0-9]+\/[0-9]+)\s*(kg|g|l|ml|cc|個|コ|パック|本|袋|枚|玉|片|かけ|束)?/i);
     if (!m) return null;
-    const amount = parseFloat(m[1]);
-    if (!Number.isFinite(amount)) return null;
+    const amount = parseFraction(m[1]);
     const unit = (m[2] || '').toLowerCase();
     if (unit === 'kg') return { type: 'weight', amount: amount * 1000 };
     if (unit === 'g') return { type: 'weight', amount };
     if (unit === 'l') return { type: 'volume', amount: amount * 1000 };
     if (unit === 'ml' || unit === 'cc') return { type: 'volume', amount };
-    // No recognized unit suffix (e.g. a bare "2", or a kanji piece-counter
-    // word) — treat as a plain piece count.
-    return { type: 'piece', amount };
+    // A piece count. unitWord keeps the original counter word (個/枚/片/…,
+    // normalized コ→個) so estimateIngredientCost can tell "3本" of
+    // something priced per-本 (an exact match) apart from "5個" of
+    // something priced per-パック (individual items out of a package —
+    // needs piecesPerUnit to scale down correctly).
+    return { type: 'piece', amount, unitWord: m[2] === 'コ' ? '個' : (m[2] || '') };
   }
 
   // Estimates one ingredient's cost: prefers the user's own cheapest recorded
   // price for that name, falls back to the reference table, then scales by
-  // the ingredient's qty when the units are compatible. Returns cost:null
-  // when there's no price data at all for this ingredient.
+  // the ingredient's qty. A reference entry's unit (1個/1パック/1袋/1本) is
+  // normally a whole retail package, which is the WRONG thing to scale a
+  // spoon or a handful of leaves against — charging a full bottle price for
+  // "大さじ1" is exactly the bug this guards against. So piece-priced
+  // entries only get scaled against a smaller recipe quantity (大さじ/小さじ
+  // /ml, or a small 個/枚/片 count) when they carry an explicit mlPerUnit or
+  // piecesPerUnit hint describing roughly how much is really in that
+  // package. Without a matching hint, or without being able to parse the
+  // qty at all, this reports the cost as unknown rather than guess wrong.
   function estimateIngredientCost(ing) {
     const userResults = getComparisonResults(ing.name);
     let source;
@@ -462,18 +506,40 @@
     } else {
       const ref = findReferencePrice(ing.name);
       if (!ref) return { cost: null, source: null, rough: false };
-      source = { price: ref.price, unit: ref.unit, kind: 'reference' };
+      source = { price: ref.price, unit: ref.unit, kind: 'reference', mlPerUnit: ref.mlPerUnit, piecesPerUnit: ref.piecesPerUnit };
     }
 
     const rate = unitToRate(source.unit, source.price);
     const qty = parseQty(ing.qty);
-    if (qty && qty.type === rate.type) {
-      return { cost: rate.rate * qty.amount, source, rough: false };
+    if (!qty) return { cost: null, source: null, rough: false };
+
+    if (qty.type === rate.type) {
+      if (rate.type !== 'piece') {
+        return { cost: rate.rate * qty.amount, source, rough: false };
+      }
+      // Both "piece", but that word covers two different things: a count of
+      // whole reference packages (qty's counter word matches the source's
+      // own unit, e.g. "3本" against a per-本 price) vs a count of
+      // individual items out of one package (e.g. "5個" of ミニトマト
+      // against a per-パック price). Only the first is safe to multiply
+      // directly; the second needs piecesPerUnit to scale down correctly.
+      const sourceUnitWord = source.unit.replace(/^1/, '');
+      if (qty.unitWord && qty.unitWord === sourceUnitWord) {
+        return { cost: rate.rate * qty.amount, source, rough: false };
+      }
+      if (source.piecesPerUnit) {
+        return { cost: (source.price / source.piecesPerUnit) * qty.amount, source, rough: true };
+      }
+      return { cost: null, source: null, rough: false };
     }
-    // Unit mismatch or unparseable qty: fall back to a flat one-unit estimate
-    // (e.g. "1個"/"100g"/"100ml" worth) and flag it as a rough guess.
-    const flatAmount = rate.type === 'piece' ? 1 : 100;
-    return { cost: rate.rate * flatAmount, source, rough: true };
+    if (qty.type === 'volume' && rate.type === 'piece' && source.mlPerUnit) {
+      return { cost: (source.price / source.mlPerUnit) * qty.amount, source, rough: true };
+    }
+    if (qty.type === 'trace') {
+      if (source.mlPerUnit) return { cost: (source.price / source.mlPerUnit) * 2, source, rough: true };
+      if (source.piecesPerUnit) return { cost: (source.price / source.piecesPerUnit) * 0.5, source, rough: true };
+    }
+    return { cost: null, source: null, rough: false };
   }
 
   function todayStr() {
