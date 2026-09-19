@@ -64,16 +64,17 @@ body {
 
 .tabs {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 10px 2px;
+  padding: 8px 6px;
   background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
   color: var(--color-muted);
   font-size: 0.85rem;
   white-space: nowrap;
@@ -82,8 +83,9 @@ body {
 
 .tab-btn.active {
   color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-  font-weight: 600;
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  font-weight: 700;
 }
 
 main#app {
@@ -280,10 +282,26 @@ button {
 }
 
 .recipe-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--color-accent);
   margin: 0 0 8px 2px;
+}
+
+.group-move-actions {
+  display: flex;
+  gap: 2px;
+}
+.group-move-actions .icon-btn {
+  font-size: 0.85rem;
+  padding: 2px 5px;
+}
+.group-move-actions .icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .ingredient-list .list-item {
@@ -360,6 +378,19 @@ button {
   gap: 6px;
 }
 
+.flyer-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.flyer-input-row input {
+  flex: 1;
+}
+.flyer-input-row button {
+  flex-shrink: 0;
+  padding: 10px 14px;
+}
+
 .flyer-link {
   display: inline-block;
   text-decoration: none;
@@ -419,6 +450,70 @@ button {
   padding: 2px 6px;
   border-radius: 999px;
   margin-left: 6px;
+}
+
+.badge-user {
+  background: var(--color-primary);
+  color: white;
+}
+
+.badge-ref {
+  background: transparent;
+  border: 1px solid var(--color-muted);
+  color: var(--color-muted);
+}
+
+.cost-card {
+  padding: 14px;
+}
+
+.cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+  gap: 10px;
+}
+.cost-row:last-of-type {
+  border-bottom: none;
+}
+
+.cost-name {
+  min-width: 0;
+}
+
+.cost-value {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.rough-mark {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  margin-left: 4px;
+}
+
+.cost-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px solid var(--color-border);
+  font-weight: 700;
+}
+.cost-total span {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}
+
+.cost-disclaimer {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  line-height: 1.6;
 }
 
 .toast {

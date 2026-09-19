@@ -8,22 +8,37 @@
   /** @typedef {{id:string, name:string, qty:string, checked:boolean, createdAt:string}} ShoppingItem */
   /** @typedef {{id:string, name:string, qty:string, group:string}} Ingredient */
   /** @typedef {{id:string, text:string, group:string}} Step */
-  /** @typedef {{id:string, name:string, servings:string, ingredients:Ingredient[], steps:Step[], createdAt:string}} Recipe */
+  /** @typedef {{id:string, name:string, servings:string, ingredients:Ingredient[], steps:Step[], groupOrder:string[], createdAt:string}} Recipe */
 
   // Recipes from before servings/steps existed had a single freeform "memo"
   // field; fold it into a one-item steps list so old data keeps showing.
   // Ingredients/steps from before groups existed get group:'' (ungrouped).
+  // groupOrder is the shared, user-reorderable display order of non-empty
+  // group names across both ingredients and steps; recipes saved before it
+  // existed get one rebuilt from whatever order the groups first appear in.
   function migrateRecipe(recipe) {
+    const ingredients = (Array.isArray(recipe.ingredients) ? recipe.ingredients : [])
+      .map((i) => ({ id: i.id, name: i.name, qty: i.qty || '', group: i.group || '' }));
+    const steps = (Array.isArray(recipe.steps)
+      ? recipe.steps
+      : (recipe.memo ? [{ id: uid(), text: recipe.memo }] : [])
+    ).map((s) => ({ id: s.id, text: s.text, group: s.group || '' }));
+
+    let groupOrder = Array.isArray(recipe.groupOrder) ? recipe.groupOrder.slice() : null;
+    if (!groupOrder) {
+      groupOrder = [];
+      for (const g of [...ingredients.map((i) => i.group), ...steps.map((s) => s.group)]) {
+        if (g && !groupOrder.includes(g)) groupOrder.push(g);
+      }
+    }
+
     return {
       id: recipe.id,
       name: recipe.name,
       servings: recipe.servings || '',
-      ingredients: (Array.isArray(recipe.ingredients) ? recipe.ingredients : [])
-        .map((i) => ({ id: i.id, name: i.name, qty: i.qty || '', group: i.group || '' })),
-      steps: (Array.isArray(recipe.steps)
-        ? recipe.steps
-        : (recipe.memo ? [{ id: uid(), text: recipe.memo }] : [])
-      ).map((s) => ({ id: s.id, text: s.text, group: s.group || '' })),
+      ingredients,
+      steps,
+      groupOrder,
       createdAt: recipe.createdAt,
     };
   }
@@ -51,6 +66,202 @@
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  // Opens Shufoo!'s own store-name search (a normal, ToS-safe use of their
+  // site) so the user can find and copy their store's flyer page URL
+  // themselves — this app never fetches or stores Shufoo's page content.
+  function openShufooSearch(name) {
+    if (!name) {
+      alert('先に店舗名を入力してください。');
+      return;
+    }
+    const url = 'https://www.shufoo.net/pntweb/shopNameSearchList/?keyword=' + encodeURIComponent(name);
+    window.open(url, '_blank', 'noopener');
+  }
+
+  // ---------- Reference price data ----------
+  // A small built-in table of rough, nationwide-average Japan grocery prices,
+  // used ONLY as a fallback when the user hasn't recorded a real price for an
+  // ingredient. These are AI-estimated ballpark figures, not live data from
+  // any store — always shown with a "参考" badge so they're never confused
+  // with the user's own recorded prices. Units match the app's own unit list
+  // (1個/1パック/1袋/1本/100g/100ml/1kg/1L) so they plug into the same
+  // per-unit cost math as user-recorded items.
+  const REFERENCE_PRICES = [
+    // 肉
+    { name: '豚こま肉', unit: '100g', price: 130 },
+    { name: '豚バラ肉', unit: '100g', price: 150 },
+    { name: '豚ロース肉', unit: '100g', price: 160 },
+    { name: '豚ひき肉', unit: '100g', price: 130 },
+    { name: '鶏むね肉', unit: '100g', price: 70 },
+    { name: '鶏もも肉', unit: '100g', price: 120 },
+    { name: '鶏ささみ', unit: '100g', price: 90 },
+    { name: '鶏ひき肉', unit: '100g', price: 100 },
+    { name: '牛こま肉', unit: '100g', price: 200 },
+    { name: '牛バラ肉', unit: '100g', price: 250 },
+    { name: '合挽き肉', unit: '100g', price: 120 },
+    { name: 'ベーコン', unit: '1パック', price: 250 },
+    { name: 'ウインナー', unit: '1パック', price: 220 },
+    { name: 'ハム', unit: '1パック', price: 200 },
+    // 魚介
+    { name: '鮭', unit: '1パック', price: 350 },
+    { name: 'サバ', unit: '1パック', price: 300 },
+    { name: 'まぐろ', unit: '1パック', price: 400 },
+    { name: 'えび', unit: '1パック', price: 400 },
+    { name: 'いか', unit: '1パック', price: 250 },
+    { name: 'ツナ缶', unit: '1個', price: 100 },
+    { name: '鯖缶', unit: '1個', price: 150 },
+    // 卵・乳製品
+    { name: '卵', unit: '1パック', price: 250 },
+    { name: '牛乳', unit: '1L', price: 220 },
+    { name: 'ヨーグルト', unit: '1パック', price: 150 },
+    { name: 'バター', unit: '1個', price: 350 },
+    { name: 'スライスチーズ', unit: '1パック', price: 250 },
+    { name: '生クリーム', unit: '1パック', price: 250 },
+    // 野菜
+    { name: '玉ねぎ', unit: '1個', price: 40 },
+    { name: 'じゃがいも', unit: '1個', price: 40 },
+    { name: 'にんじん', unit: '1個', price: 40 },
+    { name: 'キャベツ', unit: '1個', price: 180 },
+    { name: '白菜', unit: '1個', price: 250 },
+    { name: 'レタス', unit: '1個', price: 150 },
+    { name: 'きゅうり', unit: '1本', price: 40 },
+    { name: 'トマト', unit: '1個', price: 60 },
+    { name: 'ミニトマト', unit: '1パック', price: 250 },
+    { name: 'なす', unit: '1本', price: 40 },
+    { name: 'ピーマン', unit: '1袋', price: 100 },
+    { name: 'ほうれん草', unit: '1袋', price: 150 },
+    { name: '小松菜', unit: '1袋', price: 120 },
+    { name: 'もやし', unit: '1袋', price: 30 },
+    { name: 'ねぎ', unit: '1本', price: 100 },
+    { name: '大根', unit: '1本', price: 150 },
+    { name: 'ごぼう', unit: '1本', price: 130 },
+    { name: 'しめじ', unit: '1パック', price: 100 },
+    { name: 'えのき', unit: '1パック', price: 80 },
+    { name: 'しいたけ', unit: '1パック', price: 200 },
+    { name: 'にんにく', unit: '1個', price: 60 },
+    { name: 'しょうが', unit: '1個', price: 60 },
+    { name: 'アボカド', unit: '1個', price: 150 },
+    { name: 'ブロッコリー', unit: '1個', price: 200 },
+    { name: 'かぼちゃ', unit: '1個', price: 200 },
+    // 果物
+    { name: 'バナナ', unit: '1袋', price: 150 },
+    { name: 'りんご', unit: '1個', price: 100 },
+    { name: 'みかん', unit: '1袋', price: 300 },
+    { name: 'いちご', unit: '1パック', price: 400 },
+    { name: 'ぶどう', unit: '1袋', price: 400 },
+    { name: 'レモン', unit: '1個', price: 70 },
+    // 米・パン・麺
+    { name: '米', unit: '1kg', price: 600 },
+    { name: '食パン', unit: '1袋', price: 180 },
+    { name: 'うどん', unit: '1パック', price: 100 },
+    { name: 'そば', unit: '1袋', price: 200 },
+    { name: 'パスタ', unit: '1袋', price: 200 },
+    { name: '中華麺', unit: '1パック', price: 100 },
+    // 豆腐・大豆製品
+    { name: '絹豆腐', unit: '1個', price: 50 },
+    { name: '木綿豆腐', unit: '1個', price: 50 },
+    { name: '納豆', unit: '1パック', price: 100 },
+    { name: '油揚げ', unit: '1パック', price: 100 },
+    // 調味料
+    { name: '醤油', unit: '1本', price: 300 },
+    { name: '味噌', unit: '1個', price: 350 },
+    { name: 'みりん', unit: '1本', price: 300 },
+    { name: '料理酒', unit: '1本', price: 250 },
+    { name: '砂糖', unit: '1kg', price: 250 },
+    { name: '塩', unit: '1袋', price: 150 },
+    { name: 'サラダ油', unit: '1本', price: 350 },
+    { name: 'ごま油', unit: '1本', price: 400 },
+    { name: 'オリーブオイル', unit: '1本', price: 400 },
+    { name: '生ハム', unit: '1パック', price: 300 },
+    { name: 'はちみつ', unit: '1本', price: 400 },
+    { name: '粉チーズ', unit: '1個', price: 300 },
+    { name: 'パセリ', unit: '1袋', price: 100 },
+    { name: '豆乳', unit: '1L', price: 250 },
+    { name: '顆粒だし', unit: '1個', price: 300 },
+    { name: '白だし', unit: '1本', price: 350 },
+    { name: '酢', unit: '1本', price: 250 },
+    { name: 'マヨネーズ', unit: '1本', price: 300 },
+    { name: 'ケチャップ', unit: '1本', price: 250 },
+    { name: '中濃ソース', unit: '1本', price: 250 },
+    { name: 'コンソメ', unit: '1個', price: 200 },
+    { name: '鶏がらスープの素', unit: '1個', price: 250 },
+    { name: 'カレールー', unit: '1個', price: 250 },
+    { name: 'めんつゆ', unit: '1本', price: 300 },
+    { name: 'ポン酢', unit: '1本', price: 250 },
+    // その他
+    { name: '春雨', unit: '1袋', price: 150 },
+    { name: '切り餅', unit: '1袋', price: 300 },
+    { name: 'パン粉', unit: '1袋', price: 150 },
+    { name: '片栗粉', unit: '1袋', price: 150 },
+    { name: '小麦粉', unit: '1袋', price: 200 },
+  ];
+
+  function findReferencePrice(name) {
+    const q = name.trim().toLowerCase();
+    if (!q) return null;
+    // Prefer an exact name match, then fall back to substring matching
+    // (either direction) so e.g. "国産豚こま肉" still finds "豚こま肉".
+    const exact = REFERENCE_PRICES.find((r) => r.name.toLowerCase() === q);
+    if (exact) return exact;
+    return REFERENCE_PRICES.find((r) => q.includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(q)) || null;
+  }
+
+  // Converts a reference/recorded price + its unit into a per-base-unit rate
+  // (per gram, per ml, or per piece) so it can be scaled to an arbitrary qty.
+  function unitToRate(unit, price) {
+    switch (unit) {
+      case '100g': return { type: 'weight', rate: price / 100 };
+      case '1kg': return { type: 'weight', rate: price / 1000 };
+      case '100ml': return { type: 'volume', rate: price / 100 };
+      case '1L': return { type: 'volume', rate: price / 1000 };
+      default: return { type: 'piece', rate: price };
+    }
+  }
+
+  // Parses a freeform quantity string (e.g. "200g", "1個", "大さじ2") into a
+  // base-unit amount. Returns null when it can't confidently parse a number.
+  function parseQty(qtyStr) {
+    if (!qtyStr) return null;
+    const m = qtyStr.trim().match(/^([0-9]+(?:\.[0-9]+)?)\s*(kg|g|l|ml|cc|個|コ|パック|本|袋|枚|玉|片|かけ|束)?/i);
+    if (!m) return null;
+    const amount = parseFloat(m[1]);
+    if (!Number.isFinite(amount)) return null;
+    const unit = (m[2] || '').toLowerCase();
+    if (unit === 'kg') return { type: 'weight', amount: amount * 1000 };
+    if (unit === 'g') return { type: 'weight', amount };
+    if (unit === 'l') return { type: 'volume', amount: amount * 1000 };
+    if (unit === 'ml' || unit === 'cc') return { type: 'volume', amount };
+    // No recognized unit suffix (e.g. a bare "2", or a kanji piece-counter
+    // word) — treat as a plain piece count.
+    return { type: 'piece', amount };
+  }
+
+  // Estimates one ingredient's cost: prefers the user's own cheapest recorded
+  // price for that name, falls back to the reference table, then scales by
+  // the ingredient's qty when the units are compatible. Returns cost:null
+  // when there's no price data at all for this ingredient.
+  function estimateIngredientCost(ing) {
+    const userResults = getComparisonResults(ing.name);
+    let source;
+    if (userResults.length > 0) {
+      source = { price: userResults[0].price, unit: userResults[0].unit, kind: 'user' };
+    } else {
+      const ref = findReferencePrice(ing.name);
+      if (!ref) return { cost: null, source: null, rough: false };
+      source = { price: ref.price, unit: ref.unit, kind: 'reference' };
+    }
+
+    const rate = unitToRate(source.unit, source.price);
+    const qty = parseQty(ing.qty);
+    if (qty && qty.type === rate.type) {
+      return { cost: rate.rate * qty.amount, source, rough: false };
+    }
+    // Unit mismatch or unparseable qty: fall back to a flat one-unit estimate
+    // (e.g. "1個"/"100g"/"100ml" worth) and flag it as a rough guess.
+    const flatAmount = rate.type === 'piece' ? 1 : 100;
+    return { cost: rate.rate * flatAmount, source, rough: true };
   }
 
   function todayStr() {
@@ -134,7 +345,10 @@
         li.innerHTML = `
           <input type="text" class="edit-store-name" value="${escapeHtml(store.name)}" placeholder="店舗名">
           <input type="text" class="edit-store-memo" value="${escapeHtml(store.memo || '')}" placeholder="場所・メモ（任意）">
-          <input type="url" class="edit-store-flyer" value="${escapeHtml(store.flyerUrl || '')}" placeholder="チラシURL（任意、例: Shufoo!のページ）">
+          <div class="flyer-input-row">
+            <input type="url" class="edit-store-flyer" value="${escapeHtml(store.flyerUrl || '')}" placeholder="チラシURL（任意、例: Shufoo!のページ）">
+            <button type="button" class="btn-secondary" data-action="search-flyer-inline" title="Shufoo!で店舗名を検索">🔍</button>
+          </div>
           <div class="btn-row">
             <button class="btn-primary" data-action="save-store-edit" data-id="${store.id}">保存</button>
             <button class="btn-secondary" data-action="cancel-store-edit">キャンセル</button>
@@ -166,6 +380,14 @@
         e.stopPropagation();
         state.editingStoreId = btn.dataset.id;
         renderStoreList();
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="search-flyer-inline"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const li = btn.closest('.list-item');
+        openShufooSearch(li.querySelector('.edit-store-name').value.trim());
       });
     });
 
@@ -235,6 +457,14 @@
     flyerUrlEl.value = '';
     renderStoreList();
     showToast('店舗を追加しました');
+  });
+
+  document.getElementById('searchFlyerBtn').addEventListener('click', () => {
+    openShufooSearch(document.getElementById('storeName').value.trim());
+  });
+
+  document.getElementById('editSearchFlyerBtn').addEventListener('click', () => {
+    openShufooSearch(document.getElementById('editStoreName').value.trim());
   });
 
   // ---------- Store detail ----------
@@ -422,13 +652,31 @@
 
     const results = getComparisonResults(query);
 
-    emptyEl.classList.toggle('hidden', results.length > 0);
     if (results.length === 0) {
+      // No recorded prices anywhere — fall back to the built-in reference
+      // table so the search still gives a rough number, clearly badged as
+      // an AI estimate rather than a real recorded price.
+      const ref = findReferencePrice(query);
+      if (ref) {
+        emptyEl.classList.add('hidden');
+        const li = document.createElement('li');
+        li.className = 'list-item';
+        li.innerHTML = `
+          <div class="list-item-main">
+            <div class="list-item-title">${escapeHtml(ref.name)}<span class="badge badge-ref">参考</span></div>
+            <div class="list-item-sub">記録はまだありません。AIによる全国平均の目安です。</div>
+          </div>
+          <div class="price-tag">¥${ref.price}<span style="font-weight:400;font-size:0.75rem;color:var(--color-muted)"> /${escapeHtml(ref.unit)}</span></div>
+        `;
+        listEl.appendChild(li);
+        return;
+      }
       emptyEl.classList.remove('hidden');
       emptyEl.textContent = '該当する記録が見つかりません。';
       return;
     }
 
+    emptyEl.classList.add('hidden');
     results.forEach((item, idx) => {
       const store = state.data.stores.find((s) => s.id === item.storeId);
       const li = document.createElement('li');
@@ -592,6 +840,7 @@
       servings: '',
       ingredients: [],
       steps: [],
+      groupOrder: [],
       createdAt: new Date().toISOString(),
     };
     state.data.recipes.push(recipe);
@@ -619,33 +868,127 @@
     renderGroupSuggestions();
     renderIngredientList();
     renderStepList();
+    renderCostEstimate();
   }
 
-  // Buckets items by their (optional) group, preserving the order each
-  // group name was first seen. group:'' is the default, unlabeled bucket.
-  function groupItems(items) {
-    const order = [];
+  // Sums up estimateIngredientCost() across a recipe's ingredients into a
+  // "推定費用" card: your own recorded prices are preferred per ingredient,
+  // the reference table fills in the rest, and each row is badged so it's
+  // always clear which price is really yours vs an AI ballpark.
+  function renderCostEstimate() {
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    const container = document.getElementById('costEstimate');
+    if (!recipe) return;
+
+    if (recipe.ingredients.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    let total = 0;
+    let missing = 0;
+    const rowsHtml = recipe.ingredients.map((ing) => {
+      const { cost, source, rough } = estimateIngredientCost(ing);
+      if (cost == null) {
+        missing++;
+        return `
+          <div class="cost-row">
+            <span class="cost-name">${escapeHtml(ing.name)}</span>
+            <span class="cost-value muted">価格不明</span>
+          </div>
+        `;
+      }
+      total += cost;
+      const badge = source.kind === 'user'
+        ? '<span class="badge badge-user">記録</span>'
+        : '<span class="badge badge-ref">参考</span>';
+      return `
+        <div class="cost-row">
+          <span class="cost-name">${escapeHtml(ing.name)} ${badge}</span>
+          <span class="cost-value">¥${Math.round(cost)}${rough ? '<span class="rough-mark">目安</span>' : ''}</span>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <h3 class="section-heading">💰 推定費用</h3>
+      <div class="card cost-card">
+        ${rowsHtml}
+        <div class="cost-total">合計目安 <span>¥${Math.round(total)}</span></div>
+        <p class="cost-disclaimer">
+          <span class="badge badge-user">記録</span>はあなたが登録した最安値、
+          <span class="badge badge-ref">参考</span>はAIによる全国平均の目安価格です（実際とは異なります）。
+          ${missing > 0 ? `${missing}点は価格データがなく合計に含めていません。` : ''}
+        </p>
+      </div>
+    `;
+  }
+
+  // Buckets items by their (optional) group, in the recipe's shared
+  // groupOrder (user-reorderable). group:'' is the default, unlabeled
+  // bucket and always comes first, ahead of any named group.
+  function groupItems(items, groupOrder) {
     const map = new Map();
     for (const item of items) {
       const key = item.group || '';
-      if (!map.has(key)) {
-        map.set(key, []);
-        order.push(key);
-      }
+      if (!map.has(key)) map.set(key, []);
       map.get(key).push(item);
     }
-    return order.map((key) => ({ group: key, items: map.get(key) }));
+    const keys = ['', ...groupOrder];
+    return keys.filter((key) => map.has(key)).map((key) => ({ group: key, items: map.get(key) }));
+  }
+
+  // Registers a group name into the recipe's shared groupOrder the first
+  // time it's used, so it gets a persisted, reorderable position.
+  function registerGroup(recipe, group) {
+    if (group && !recipe.groupOrder.includes(group)) recipe.groupOrder.push(group);
+  }
+
+  function moveGroup(recipe, group, direction) {
+    const idx = recipe.groupOrder.indexOf(group);
+    if (idx === -1) return;
+    const swap = direction === 'up' ? idx - 1 : idx + 1;
+    if (swap < 0 || swap >= recipe.groupOrder.length) return;
+    [recipe.groupOrder[idx], recipe.groupOrder[swap]] = [recipe.groupOrder[swap], recipe.groupOrder[idx]];
+  }
+
+  function groupHeadingHtml(recipe, group) {
+    const idx = recipe.groupOrder.indexOf(group);
+    return `
+      <div class="recipe-group-heading">
+        <span>${escapeHtml(group)}</span>
+        <span class="group-move-actions">
+          <button class="icon-btn" data-action="move-group-up" data-group="${escapeHtml(group)}" title="グループを上に移動" ${idx === 0 ? 'disabled' : ''}>▲</button>
+          <button class="icon-btn" data-action="move-group-down" data-group="${escapeHtml(group)}" title="グループを下に移動" ${idx === recipe.groupOrder.length - 1 ? 'disabled' : ''}>▼</button>
+        </span>
+      </div>
+    `;
+  }
+
+  function bindGroupMoveButtons(containerEl, recipe) {
+    containerEl.querySelectorAll('[data-action="move-group-up"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        moveGroup(recipe, btn.dataset.group, 'up');
+        saveData();
+        renderIngredientList();
+        renderStepList();
+      });
+    });
+    containerEl.querySelectorAll('[data-action="move-group-down"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        moveGroup(recipe, btn.dataset.group, 'down');
+        saveData();
+        renderIngredientList();
+        renderStepList();
+      });
+    });
   }
 
   function renderGroupSuggestions() {
     const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
     if (!recipe) return;
-    const groups = new Set([
-      ...recipe.ingredients.map((i) => i.group).filter(Boolean),
-      ...recipe.steps.map((s) => s.group).filter(Boolean),
-    ]);
     document.getElementById('recipeGroupSuggestions').innerHTML =
-      [...groups].sort((a, b) => a.localeCompare(b, 'ja')).map((g) => `<option value="${escapeHtml(g)}"></option>`).join('');
+      recipe.groupOrder.map((g) => `<option value="${escapeHtml(g)}"></option>`).join('');
   }
 
   document.getElementById('backToRecipes').addEventListener('click', () => {
@@ -697,7 +1040,7 @@
     containerEl.innerHTML = '';
     emptyEl.classList.toggle('hidden', recipe.ingredients.length > 0);
 
-    for (const { group, items } of groupItems(recipe.ingredients)) {
+    for (const { group, items } of groupItems(recipe.ingredients, recipe.groupOrder)) {
       const groupEl = document.createElement('div');
       groupEl.className = 'recipe-group';
       const ul = document.createElement('ul');
@@ -716,12 +1059,7 @@
         `;
         ul.appendChild(li);
       }
-      if (group) {
-        const heading = document.createElement('div');
-        heading.className = 'recipe-group-heading';
-        heading.textContent = group;
-        groupEl.appendChild(heading);
-      }
+      if (group) groupEl.insertAdjacentHTML('beforeend', groupHeadingHtml(recipe, group));
       groupEl.appendChild(ul);
       containerEl.appendChild(groupEl);
     }
@@ -733,8 +1071,11 @@
         renderIngredientList();
         renderGroupSuggestions();
         renderRecipeList();
+        renderCostEstimate();
       });
     });
+
+    bindGroupMoveButtons(containerEl, recipe);
   }
 
   document.getElementById('ingredientForm').addEventListener('submit', (e) => {
@@ -746,7 +1087,9 @@
     const groupEl = document.getElementById('ingredientGroup');
     const name = nameEl.value.trim();
     if (!name) return;
-    recipe.ingredients.push({ id: uid(), name, qty: qtyEl.value.trim(), group: groupEl.value.trim() });
+    const group = groupEl.value.trim();
+    registerGroup(recipe, group);
+    recipe.ingredients.push({ id: uid(), name, qty: qtyEl.value.trim(), group });
     saveData();
     nameEl.value = '';
     qtyEl.value = '';
@@ -755,6 +1098,7 @@
     // time into the same group (e.g. all of "ドレッシング" back to back).
     renderIngredientList();
     renderGroupSuggestions();
+    renderCostEstimate();
   });
 
   document.getElementById('addIngredientsToShoppingBtn').addEventListener('click', () => {
@@ -807,7 +1151,7 @@
     containerEl.innerHTML = '';
     emptyEl.classList.toggle('hidden', recipe.steps.length > 0);
 
-    for (const { group, items } of groupItems(recipe.steps)) {
+    for (const { group, items } of groupItems(recipe.steps, recipe.groupOrder)) {
       const groupEl = document.createElement('div');
       groupEl.className = 'recipe-group';
       const ol = document.createElement('ol');
@@ -826,12 +1170,7 @@
         `;
         ol.appendChild(li);
       });
-      if (group) {
-        const heading = document.createElement('div');
-        heading.className = 'recipe-group-heading';
-        heading.textContent = group;
-        groupEl.appendChild(heading);
-      }
+      if (group) groupEl.insertAdjacentHTML('beforeend', groupHeadingHtml(recipe, group));
       groupEl.appendChild(ol);
       containerEl.appendChild(groupEl);
     }
@@ -861,6 +1200,8 @@
         renderStepList();
       });
     });
+
+    bindGroupMoveButtons(containerEl, recipe);
   }
 
   document.getElementById('stepForm').addEventListener('submit', (e) => {
@@ -871,7 +1212,9 @@
     const groupEl = document.getElementById('stepGroup');
     const text = textEl.value.trim();
     if (!text) return;
-    recipe.steps.push({ id: uid(), text, group: groupEl.value.trim() });
+    const group = groupEl.value.trim();
+    registerGroup(recipe, group);
+    recipe.steps.push({ id: uid(), text, group });
     saveData();
     textEl.value = '';
     textEl.focus();
