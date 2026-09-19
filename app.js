@@ -6,20 +6,23 @@
   /** @typedef {{id:string, name:string, memo:string, createdAt:string}} Store */
   /** @typedef {{id:string, storeId:string, name:string, price:number, unit:string, note:string, date:string, createdAt:string}} Item */
   /** @typedef {{id:string, name:string, qty:string, checked:boolean, createdAt:string}} ShoppingItem */
+  /** @typedef {{id:string, name:string, qty:string}} Ingredient */
+  /** @typedef {{id:string, name:string, memo:string, ingredients:Ingredient[], createdAt:string}} Recipe */
 
   function loadData() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return { stores: [], items: [], shoppingList: [] };
+      if (!raw) return { stores: [], items: [], shoppingList: [], recipes: [] };
       const parsed = JSON.parse(raw);
       return {
         stores: Array.isArray(parsed.stores) ? parsed.stores : [],
         items: Array.isArray(parsed.items) ? parsed.items : [],
         shoppingList: Array.isArray(parsed.shoppingList) ? parsed.shoppingList : [],
+        recipes: Array.isArray(parsed.recipes) ? parsed.recipes : [],
       };
     } catch (e) {
       console.error('Failed to load data', e);
-      return { stores: [], items: [], shoppingList: [] };
+      return { stores: [], items: [], shoppingList: [], recipes: [] };
     }
   }
 
@@ -52,6 +55,7 @@
   const state = {
     data: loadData(),
     currentStoreId: null,
+    currentRecipeId: null,
     currentView: 'stores',
     editingStoreId: null,
   };
@@ -80,6 +84,12 @@
     });
     if (view === 'compare') renderCompare();
     if (view === 'shopping') renderShoppingList();
+    if (view === 'recipes') {
+      state.currentRecipeId = null;
+      document.getElementById('recipeDetailScreen').classList.add('hidden');
+      document.getElementById('recipeListScreen').classList.remove('hidden');
+      renderRecipeList();
+    }
   }
 
   document.getElementById('tabs').addEventListener('click', (e) => {
@@ -492,6 +502,192 @@
     renderShoppingList();
   });
 
+  // ---------- Recipe list ----------
+  function renderRecipeList() {
+    const listEl = document.getElementById('recipeList');
+    const emptyEl = document.getElementById('recipeEmpty');
+    const recipes = [...state.data.recipes].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+    listEl.innerHTML = '';
+    emptyEl.classList.toggle('hidden', recipes.length > 0);
+
+    for (const recipe of recipes) {
+      const li = document.createElement('li');
+      li.className = 'list-item';
+      li.innerHTML = `
+        <div class="list-item-main">
+          <div class="list-item-title">${escapeHtml(recipe.name)}</div>
+          <div class="list-item-sub">材料 ${recipe.ingredients.length}点</div>
+        </div>
+        <div class="item-actions">
+          <button class="icon-btn" data-action="delete-recipe" data-id="${recipe.id}" title="削除">🗑</button>
+        </div>
+      `;
+      li.querySelector('.list-item-main').addEventListener('click', () => openRecipeDetail(recipe.id));
+      listEl.appendChild(li);
+    }
+
+    listEl.querySelectorAll('[data-action="delete-recipe"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const recipe = state.data.recipes.find((r) => r.id === id);
+        if (!recipe) return;
+        if (!confirm(`「${recipe.name}」を削除しますか？`)) return;
+        state.data.recipes = state.data.recipes.filter((r) => r.id !== id);
+        saveData();
+        renderRecipeList();
+        showToast('レシピを削除しました');
+      });
+    });
+  }
+
+  document.getElementById('recipeForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nameEl = document.getElementById('recipeName');
+    const memoEl = document.getElementById('recipeMemo');
+    const name = nameEl.value.trim();
+    if (!name) return;
+    state.data.recipes.push({
+      id: uid(),
+      name,
+      memo: memoEl.value.trim(),
+      ingredients: [],
+      createdAt: new Date().toISOString(),
+    });
+    saveData();
+    nameEl.value = '';
+    memoEl.value = '';
+    renderRecipeList();
+    showToast('レシピを追加しました');
+  });
+
+  // ---------- Recipe detail ----------
+  function openRecipeDetail(recipeId) {
+    state.currentRecipeId = recipeId;
+    const recipe = state.data.recipes.find((r) => r.id === recipeId);
+    if (!recipe) return;
+    document.getElementById('recipeListScreen').classList.add('hidden');
+    document.getElementById('recipeDetailScreen').classList.remove('hidden');
+    document.getElementById('detailRecipeName').textContent = recipe.name;
+    document.getElementById('detailRecipeMemo').textContent = recipe.memo || '';
+    document.getElementById('recipeDetailTitle').classList.remove('hidden');
+    document.getElementById('editRecipeForm').classList.add('hidden');
+    renderItemNameSuggestions();
+    renderIngredientList();
+  }
+
+  document.getElementById('backToRecipes').addEventListener('click', () => {
+    state.currentRecipeId = null;
+    document.getElementById('recipeDetailScreen').classList.add('hidden');
+    document.getElementById('recipeListScreen').classList.remove('hidden');
+    renderRecipeList();
+  });
+
+  document.getElementById('editRecipeBtn').addEventListener('click', () => {
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    if (!recipe) return;
+    document.getElementById('editRecipeName').value = recipe.name;
+    document.getElementById('editRecipeMemo').value = recipe.memo || '';
+    document.getElementById('recipeDetailTitle').classList.add('hidden');
+    document.getElementById('editRecipeForm').classList.remove('hidden');
+    document.getElementById('editRecipeName').focus();
+  });
+
+  document.getElementById('cancelEditRecipeBtn').addEventListener('click', () => {
+    document.getElementById('editRecipeForm').classList.add('hidden');
+    document.getElementById('recipeDetailTitle').classList.remove('hidden');
+  });
+
+  document.getElementById('editRecipeForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    if (!recipe) return;
+    const name = document.getElementById('editRecipeName').value.trim();
+    const memo = document.getElementById('editRecipeMemo').value.trim();
+    if (!name) return;
+    recipe.name = name;
+    recipe.memo = memo;
+    saveData();
+    document.getElementById('detailRecipeName').textContent = recipe.name;
+    document.getElementById('detailRecipeMemo').textContent = recipe.memo || '';
+    document.getElementById('editRecipeForm').classList.add('hidden');
+    document.getElementById('recipeDetailTitle').classList.remove('hidden');
+    showToast('レシピを更新しました');
+  });
+
+  function renderIngredientList() {
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    const listEl = document.getElementById('ingredientList');
+    const emptyEl = document.getElementById('ingredientEmpty');
+    if (!recipe) return;
+
+    listEl.innerHTML = '';
+    emptyEl.classList.toggle('hidden', recipe.ingredients.length > 0);
+
+    for (const ing of recipe.ingredients) {
+      const li = document.createElement('li');
+      li.className = 'list-item';
+      li.innerHTML = `
+        <div class="list-item-main">
+          <div class="list-item-title">${escapeHtml(ing.name)}</div>
+          ${ing.qty ? `<div class="list-item-sub">${escapeHtml(ing.qty)}</div>` : ''}
+        </div>
+        <div class="item-actions">
+          <button class="icon-btn" data-action="delete-ingredient" data-id="${ing.id}" title="削除">🗑</button>
+        </div>
+      `;
+      listEl.appendChild(li);
+    }
+
+    listEl.querySelectorAll('[data-action="delete-ingredient"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        recipe.ingredients = recipe.ingredients.filter((i) => i.id !== btn.dataset.id);
+        saveData();
+        renderIngredientList();
+      });
+    });
+  }
+
+  document.getElementById('ingredientForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    if (!recipe) return;
+    const nameEl = document.getElementById('ingredientName');
+    const qtyEl = document.getElementById('ingredientQty');
+    const name = nameEl.value.trim();
+    if (!name) return;
+    recipe.ingredients.push({ id: uid(), name, qty: qtyEl.value.trim() });
+    saveData();
+    nameEl.value = '';
+    qtyEl.value = '';
+    nameEl.focus();
+    renderIngredientList();
+  });
+
+  document.getElementById('addIngredientsToShoppingBtn').addEventListener('click', () => {
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    if (!recipe || recipe.ingredients.length === 0) return;
+    const existingUnchecked = new Set(
+      state.data.shoppingList.filter((i) => !i.checked).map((i) => i.name)
+    );
+    let addedCount = 0;
+    for (const ing of recipe.ingredients) {
+      if (existingUnchecked.has(ing.name)) continue;
+      state.data.shoppingList.push({
+        id: uid(),
+        name: ing.name,
+        qty: ing.qty || '',
+        checked: false,
+        createdAt: new Date().toISOString(),
+      });
+      existingUnchecked.add(ing.name);
+      addedCount++;
+    }
+    saveData();
+    showToast(addedCount > 0 ? `${addedCount}件を買い物リストに追加しました` : 'すべて追加済みです');
+  });
+
   // ---------- Settings: export / import / clear ----------
   document.getElementById('exportBtn').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: 'application/json' });
@@ -518,8 +714,9 @@
         const stores = Array.isArray(parsed.stores) ? parsed.stores : [];
         const items = Array.isArray(parsed.items) ? parsed.items : [];
         const shoppingList = Array.isArray(parsed.shoppingList) ? parsed.shoppingList : [];
+        const recipes = Array.isArray(parsed.recipes) ? parsed.recipes : [];
         if (!confirm(`店舗${stores.length}件・記録${items.length}件を読み込みます。現在のデータは上書きされます。よろしいですか？`)) return;
-        state.data = { stores, items, shoppingList };
+        state.data = { stores, items, shoppingList, recipes };
         saveData();
         renderStoreList();
         showToast('インポートしました');
@@ -534,7 +731,7 @@
 
   document.getElementById('clearAllBtn').addEventListener('click', () => {
     if (!confirm('すべてのデータを削除します。この操作は取り消せません。よろしいですか？')) return;
-    state.data = { stores: [], items: [], shoppingList: [] };
+    state.data = { stores: [], items: [], shoppingList: [], recipes: [] };
     saveData();
     renderStoreList();
     showToast('全データを削除しました');

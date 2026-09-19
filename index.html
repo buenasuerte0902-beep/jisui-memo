@@ -20,6 +20,7 @@
   <nav class="tabs" id="tabs">
     <button class="tab-btn active" data-view="stores">店舗</button>
     <button class="tab-btn" data-view="shopping">買い物リスト</button>
+    <button class="tab-btn" data-view="recipes">レシピ</button>
     <button class="tab-btn" data-view="compare">価格比較</button>
     <button class="tab-btn" data-view="settings">設定</button>
   </nav>
@@ -113,6 +114,58 @@
     </div>
     <ul id="shoppingList" class="list"></ul>
     <p id="shoppingEmpty" class="empty-msg">買い物リストは空です。上のフォームから追加してください。</p>
+  </section>
+
+  <!-- レシピ -->
+  <section id="view-recipes" class="view">
+    <div id="recipeListScreen">
+      <form id="recipeForm" class="card form-inline">
+        <input type="text" id="recipeName" placeholder="レシピ名（例: 豚こま肉の生姜焼き）" required>
+        <input type="text" id="recipeMemo" placeholder="作り方・メモ（任意）">
+        <button type="submit" class="btn-primary">追加</button>
+      </form>
+      <ul id="recipeList" class="list"></ul>
+      <p id="recipeEmpty" class="empty-msg">まだレシピが登録されていません。上のフォームから追加してください。</p>
+    </div>
+
+    <div id="recipeDetailScreen" class="hidden">
+      <button id="backToRecipes" class="btn-back">← レシピ一覧に戻る</button>
+      <div class="store-detail-title" id="recipeDetailTitle">
+        <div class="detail-title-row">
+          <h2 id="detailRecipeName"></h2>
+          <button id="editRecipeBtn" class="icon-btn" title="レシピを編集">✏️</button>
+        </div>
+        <p id="detailRecipeMemo" class="muted"></p>
+      </div>
+
+      <form id="editRecipeForm" class="card hidden">
+        <div class="form-row">
+          <input type="text" id="editRecipeName" placeholder="レシピ名" required>
+        </div>
+        <div class="form-row">
+          <input type="text" id="editRecipeMemo" placeholder="作り方・メモ（任意）">
+        </div>
+        <div class="btn-row">
+          <button type="submit" class="btn-primary">保存</button>
+          <button type="button" id="cancelEditRecipeBtn" class="btn-secondary">キャンセル</button>
+        </div>
+      </form>
+
+      <form id="ingredientForm" class="card">
+        <div class="form-row two-col">
+          <input type="text" id="ingredientName" placeholder="材料名（例: 豚こま肉）" required list="itemNameSuggestions">
+          <input type="text" id="ingredientQty" placeholder="分量（例: 200g）">
+        </div>
+        <button type="submit" class="btn-primary">材料を追加</button>
+      </form>
+
+      <ul id="ingredientList" class="list"></ul>
+      <p id="ingredientEmpty" class="empty-msg">まだ材料が登録されていません。</p>
+
+      <div class="btn-row">
+        <button id="addIngredientsToShoppingBtn" class="btn-primary">買い物リストに追加</button>
+      </div>
+    </div>
   </section>
 
   <!-- 価格比較 -->
