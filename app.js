@@ -6,21 +6,24 @@
   /** @typedef {{id:string, name:string, memo:string, flyerUrl:string, createdAt:string}} Store */
   /** @typedef {{id:string, storeId:string, name:string, price:number, unit:string, note:string, date:string, createdAt:string}} Item */
   /** @typedef {{id:string, name:string, qty:string, checked:boolean, createdAt:string}} ShoppingItem */
-  /** @typedef {{id:string, name:string, qty:string}} Ingredient */
-  /** @typedef {{id:string, text:string}} Step */
+  /** @typedef {{id:string, name:string, qty:string, group:string}} Ingredient */
+  /** @typedef {{id:string, text:string, group:string}} Step */
   /** @typedef {{id:string, name:string, servings:string, ingredients:Ingredient[], steps:Step[], createdAt:string}} Recipe */
 
   // Recipes from before servings/steps existed had a single freeform "memo"
   // field; fold it into a one-item steps list so old data keeps showing.
+  // Ingredients/steps from before groups existed get group:'' (ungrouped).
   function migrateRecipe(recipe) {
     return {
       id: recipe.id,
       name: recipe.name,
       servings: recipe.servings || '',
-      ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
-      steps: Array.isArray(recipe.steps)
+      ingredients: (Array.isArray(recipe.ingredients) ? recipe.ingredients : [])
+        .map((i) => ({ id: i.id, name: i.name, qty: i.qty || '', group: i.group || '' })),
+      steps: (Array.isArray(recipe.steps)
         ? recipe.steps
-        : (recipe.memo ? [{ id: uid(), text: recipe.memo }] : []),
+        : (recipe.memo ? [{ id: uid(), text: recipe.memo }] : [])
+      ).map((s) => ({ id: s.id, text: s.text, group: s.group || '' })),
       createdAt: recipe.createdAt,
     };
   }
@@ -610,9 +613,39 @@
     document.getElementById('detailRecipeServings').textContent = recipe.servings || '';
     document.getElementById('recipeDetailTitle').classList.remove('hidden');
     document.getElementById('editRecipeForm').classList.add('hidden');
+    document.getElementById('ingredientGroup').value = '';
+    document.getElementById('stepGroup').value = '';
     renderItemNameSuggestions();
+    renderGroupSuggestions();
     renderIngredientList();
     renderStepList();
+  }
+
+  // Buckets items by their (optional) group, preserving the order each
+  // group name was first seen. group:'' is the default, unlabeled bucket.
+  function groupItems(items) {
+    const order = [];
+    const map = new Map();
+    for (const item of items) {
+      const key = item.group || '';
+      if (!map.has(key)) {
+        map.set(key, []);
+        order.push(key);
+      }
+      map.get(key).push(item);
+    }
+    return order.map((key) => ({ group: key, items: map.get(key) }));
+  }
+
+  function renderGroupSuggestions() {
+    const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
+    if (!recipe) return;
+    const groups = new Set([
+      ...recipe.ingredients.map((i) => i.group).filter(Boolean),
+      ...recipe.steps.map((s) => s.group).filter(Boolean),
+    ]);
+    document.getElementById('recipeGroupSuggestions').innerHTML =
+      [...groups].sort((a, b) => a.localeCompare(b, 'ja')).map((g) => `<option value="${escapeHtml(g)}"></option>`).join('');
   }
 
   document.getElementById('backToRecipes').addEventListener('click', () => {
@@ -657,33 +690,48 @@
   // ---------- Ingredients ----------
   function renderIngredientList() {
     const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
-    const listEl = document.getElementById('ingredientList');
+    const containerEl = document.getElementById('ingredientGroups');
     const emptyEl = document.getElementById('ingredientEmpty');
     if (!recipe) return;
 
-    listEl.innerHTML = '';
+    containerEl.innerHTML = '';
     emptyEl.classList.toggle('hidden', recipe.ingredients.length > 0);
 
-    for (const ing of recipe.ingredients) {
-      const li = document.createElement('li');
-      li.className = 'list-item';
-      li.innerHTML = `
-        <div class="ingredient-row">
-          <span class="ingredient-name">${escapeHtml(ing.name)}</span>
-          ${ing.qty ? `<span class="ingredient-qty">${escapeHtml(ing.qty)}</span>` : ''}
-        </div>
-        <div class="item-actions">
-          <button class="icon-btn" data-action="delete-ingredient" data-id="${ing.id}" title="削除">🗑</button>
-        </div>
-      `;
-      listEl.appendChild(li);
+    for (const { group, items } of groupItems(recipe.ingredients)) {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'recipe-group';
+      const ul = document.createElement('ul');
+      ul.className = 'list ingredient-list';
+      for (const ing of items) {
+        const li = document.createElement('li');
+        li.className = 'list-item';
+        li.innerHTML = `
+          <div class="ingredient-row">
+            <span class="ingredient-name">${escapeHtml(ing.name)}</span>
+            ${ing.qty ? `<span class="ingredient-qty">${escapeHtml(ing.qty)}</span>` : ''}
+          </div>
+          <div class="item-actions">
+            <button class="icon-btn" data-action="delete-ingredient" data-id="${ing.id}" title="削除">🗑</button>
+          </div>
+        `;
+        ul.appendChild(li);
+      }
+      if (group) {
+        const heading = document.createElement('div');
+        heading.className = 'recipe-group-heading';
+        heading.textContent = group;
+        groupEl.appendChild(heading);
+      }
+      groupEl.appendChild(ul);
+      containerEl.appendChild(groupEl);
     }
 
-    listEl.querySelectorAll('[data-action="delete-ingredient"]').forEach((btn) => {
+    containerEl.querySelectorAll('[data-action="delete-ingredient"]').forEach((btn) => {
       btn.addEventListener('click', () => {
         recipe.ingredients = recipe.ingredients.filter((i) => i.id !== btn.dataset.id);
         saveData();
         renderIngredientList();
+        renderGroupSuggestions();
         renderRecipeList();
       });
     });
@@ -695,14 +743,18 @@
     if (!recipe) return;
     const nameEl = document.getElementById('ingredientName');
     const qtyEl = document.getElementById('ingredientQty');
+    const groupEl = document.getElementById('ingredientGroup');
     const name = nameEl.value.trim();
     if (!name) return;
-    recipe.ingredients.push({ id: uid(), name, qty: qtyEl.value.trim() });
+    recipe.ingredients.push({ id: uid(), name, qty: qtyEl.value.trim(), group: groupEl.value.trim() });
     saveData();
     nameEl.value = '';
     qtyEl.value = '';
     nameEl.focus();
+    // Leave the group field as-is: ingredients are usually added a few at a
+    // time into the same group (e.g. all of "ドレッシング" back to back).
     renderIngredientList();
+    renderGroupSuggestions();
   });
 
   document.getElementById('addIngredientsToShoppingBtn').addEventListener('click', () => {
@@ -729,54 +781,82 @@
   });
 
   // ---------- Steps ----------
+  // Moves a step up/down among only the steps that share its group (steps in
+  // other groups aren't necessarily adjacent in recipe.steps, so this finds
+  // the real array indices of the two group-mates being swapped).
+  function moveStepWithinGroup(recipe, stepId, direction) {
+    const step = recipe.steps.find((s) => s.id === stepId);
+    if (!step) return;
+    const groupIndices = recipe.steps
+      .map((s, i) => (s.group === step.group ? i : -1))
+      .filter((i) => i !== -1);
+    const posInGroup = groupIndices.findIndex((i) => recipe.steps[i].id === stepId);
+    const swapPos = direction === 'up' ? posInGroup - 1 : posInGroup + 1;
+    if (swapPos < 0 || swapPos >= groupIndices.length) return;
+    const idxA = groupIndices[posInGroup];
+    const idxB = groupIndices[swapPos];
+    [recipe.steps[idxA], recipe.steps[idxB]] = [recipe.steps[idxB], recipe.steps[idxA]];
+  }
+
   function renderStepList() {
     const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
-    const listEl = document.getElementById('stepList');
+    const containerEl = document.getElementById('stepGroups');
     const emptyEl = document.getElementById('stepEmpty');
     if (!recipe) return;
 
-    listEl.innerHTML = '';
+    containerEl.innerHTML = '';
     emptyEl.classList.toggle('hidden', recipe.steps.length > 0);
 
-    recipe.steps.forEach((step, index) => {
-      const li = document.createElement('li');
-      li.className = 'list-item step-item';
-      li.innerHTML = `
-        <div class="step-number">${index + 1}</div>
-        <div class="step-text">${escapeHtml(step.text)}</div>
-        <div class="step-actions">
-          <button class="icon-btn" data-action="move-step-up" data-id="${step.id}" title="上に移動" ${index === 0 ? 'disabled' : ''}>▲</button>
-          <button class="icon-btn" data-action="move-step-down" data-id="${step.id}" title="下に移動" ${index === recipe.steps.length - 1 ? 'disabled' : ''}>▼</button>
-        </div>
-        <button class="icon-btn" data-action="delete-step" data-id="${step.id}" title="削除">🗑</button>
-      `;
-      listEl.appendChild(li);
-    });
+    for (const { group, items } of groupItems(recipe.steps)) {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'recipe-group';
+      const ol = document.createElement('ol');
+      ol.className = 'list step-list';
+      items.forEach((step, index) => {
+        const li = document.createElement('li');
+        li.className = 'list-item step-item';
+        li.innerHTML = `
+          <div class="step-number">${index + 1}</div>
+          <div class="step-text">${escapeHtml(step.text)}</div>
+          <div class="step-actions">
+            <button class="icon-btn" data-action="move-step-up" data-id="${step.id}" title="上に移動" ${index === 0 ? 'disabled' : ''}>▲</button>
+            <button class="icon-btn" data-action="move-step-down" data-id="${step.id}" title="下に移動" ${index === items.length - 1 ? 'disabled' : ''}>▼</button>
+          </div>
+          <button class="icon-btn" data-action="delete-step" data-id="${step.id}" title="削除">🗑</button>
+        `;
+        ol.appendChild(li);
+      });
+      if (group) {
+        const heading = document.createElement('div');
+        heading.className = 'recipe-group-heading';
+        heading.textContent = group;
+        groupEl.appendChild(heading);
+      }
+      groupEl.appendChild(ol);
+      containerEl.appendChild(groupEl);
+    }
 
-    listEl.querySelectorAll('[data-action="delete-step"]').forEach((btn) => {
+    containerEl.querySelectorAll('[data-action="delete-step"]').forEach((btn) => {
       btn.addEventListener('click', () => {
         recipe.steps = recipe.steps.filter((s) => s.id !== btn.dataset.id);
         saveData();
         renderStepList();
+        renderGroupSuggestions();
         renderRecipeList();
       });
     });
 
-    listEl.querySelectorAll('[data-action="move-step-up"]').forEach((btn) => {
+    containerEl.querySelectorAll('[data-action="move-step-up"]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const idx = recipe.steps.findIndex((s) => s.id === btn.dataset.id);
-        if (idx <= 0) return;
-        [recipe.steps[idx - 1], recipe.steps[idx]] = [recipe.steps[idx], recipe.steps[idx - 1]];
+        moveStepWithinGroup(recipe, btn.dataset.id, 'up');
         saveData();
         renderStepList();
       });
     });
 
-    listEl.querySelectorAll('[data-action="move-step-down"]').forEach((btn) => {
+    containerEl.querySelectorAll('[data-action="move-step-down"]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const idx = recipe.steps.findIndex((s) => s.id === btn.dataset.id);
-        if (idx === -1 || idx >= recipe.steps.length - 1) return;
-        [recipe.steps[idx + 1], recipe.steps[idx]] = [recipe.steps[idx], recipe.steps[idx + 1]];
+        moveStepWithinGroup(recipe, btn.dataset.id, 'down');
         saveData();
         renderStepList();
       });
@@ -788,13 +868,16 @@
     const recipe = state.data.recipes.find((r) => r.id === state.currentRecipeId);
     if (!recipe) return;
     const textEl = document.getElementById('stepText');
+    const groupEl = document.getElementById('stepGroup');
     const text = textEl.value.trim();
     if (!text) return;
-    recipe.steps.push({ id: uid(), text });
+    recipe.steps.push({ id: uid(), text, group: groupEl.value.trim() });
     saveData();
     textEl.value = '';
     textEl.focus();
+    // Leave the group field as-is, same reasoning as the ingredient form.
     renderStepList();
+    renderGroupSuggestions();
     renderRecipeList();
   });
 

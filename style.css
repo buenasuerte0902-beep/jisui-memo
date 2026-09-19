@@ -272,6 +272,20 @@ button {
   width: 100%;
 }
 
+.recipe-group {
+  margin-top: 14px;
+}
+.recipe-group:first-child {
+  margin-top: 0;
+}
+
+.recipe-group-heading {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 0 0 8px 2px;
+}
+
 .ingredient-list .list-item {
   padding: 10px 14px;
 }

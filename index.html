@@ -159,15 +159,20 @@
         <button id="addIngredientsToShoppingBtn" class="btn-primary">🛒 材料を買い物リストに追加</button>
       </div>
 
+      <datalist id="recipeGroupSuggestions"></datalist>
+
       <h3 class="section-heading">材料</h3>
       <form id="ingredientForm" class="card">
         <div class="form-row two-col">
           <input type="text" id="ingredientName" placeholder="材料名（例: 豚こま肉）" required list="itemNameSuggestions">
           <input type="text" id="ingredientQty" placeholder="分量（例: 200g）">
         </div>
+        <div class="form-row">
+          <input type="text" id="ingredientGroup" placeholder="グループ（任意、例: サラダ／ドレッシング）" list="recipeGroupSuggestions">
+        </div>
         <button type="submit" class="btn-primary">材料を追加</button>
       </form>
-      <ul id="ingredientList" class="list ingredient-list"></ul>
+      <div id="ingredientGroups"></div>
       <p id="ingredientEmpty" class="empty-msg">まだ材料が登録されていません。</p>
 
       <h3 class="section-heading">作り方</h3>
@@ -175,9 +180,12 @@
         <div class="form-row">
           <textarea id="stepText" placeholder="手順を入力（例: 豚肉に下味をつける）" rows="2" required></textarea>
         </div>
+        <div class="form-row">
+          <input type="text" id="stepGroup" placeholder="グループ（任意、例: サラダ／ドレッシング）" list="recipeGroupSuggestions">
+        </div>
         <button type="submit" class="btn-primary">手順を追加</button>
       </form>
-      <ol id="stepList" class="list step-list"></ol>
+      <div id="stepGroups"></div>
       <p id="stepEmpty" class="empty-msg">まだ手順が登録されていません。</p>
     </div>
   </section>
