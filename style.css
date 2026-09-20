@@ -432,6 +432,10 @@ button {
   margin: 0 0 12px;
 }
 
+.muted a {
+  color: var(--color-primary);
+}
+
 .empty-msg {
   color: var(--color-muted);
   text-align: center;

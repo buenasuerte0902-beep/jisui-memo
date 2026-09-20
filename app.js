@@ -2,6 +2,12 @@
   'use strict';
 
   const STORAGE_KEY = 'jisui_memo_data_v1';
+  // Kept separate from STORAGE_KEY on purpose: a Gemini API key is
+  // per-device/personal and must never end up in the JSON export/import
+  // bundle (which is meant to be moved between devices or shared).
+  const GEMINI_KEY_STORAGE = 'jisui_memo_gemini_key_v1';
+  const GEMINI_MODEL_STORAGE = 'jisui_memo_gemini_model_v1';
+  const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
 
   /** @typedef {{id:string, name:string, memo:string, flyerUrl:string, createdAt:string}} Store */
   /** @typedef {{id:string, storeId:string, name:string, price:number, unit:string, note:string, date:string, createdAt:string}} Item */
@@ -592,11 +598,13 @@
     });
     if (view === 'compare') renderCompare();
     if (view === 'shopping') renderShoppingList();
+    if (view === 'settings') renderGeminiKeyStatus();
     if (view === 'recipes') {
       state.currentRecipeId = null;
       document.getElementById('recipeDetailScreen').classList.add('hidden');
       document.getElementById('recipeListScreen').classList.remove('hidden');
       renderRecipeList();
+      renderGeminiKeyStatus();
     }
   }
 
@@ -1235,12 +1243,141 @@
     return { name, servings, ingredients, steps, groupOrder };
   }
 
-  document.getElementById('importRecipeBtn').addEventListener('click', () => {
+  // Calls Gemini (the user's own free-tier API key, stored only on this
+  // device) to extract structured recipe data from messy pasted text — much
+  // more forgiving than the regex parser, at the cost of sending that text
+  // to Google and needing a key. Throws on any failure; the caller falls
+  // back to parseRecipeText rather than surfacing this as a hard error.
+  async function callGeminiParse(text) {
+    const apiKey = getGeminiKey();
+    const model = getGeminiModel();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+    const prompt = [
+      'あなたは料理レシピの文章から構造化データを抽出するアシスタントです。',
+      '以下はYouTubeの概要欄やレシピサイトなどからコピーされた文章です。',
+      'この文章から、レシピ名・人数・材料・手順だけを抽出し、指定されたJSON形式で返してください。',
+      '- servings: 「2人分」のような文字列。書かれていなければ空文字。',
+      '- ingredients: 各要素は name（材料名）, qty（分量。書かれていなければ空文字）, group（「たれ」「ソース」のように材料が明確にグループ分けされている場合のみそのグループ名、それ以外は空文字）。',
+      '- steps: 各要素は text（手順の文章、1手順ごとに分ける）, group（材料と同様に手順がグループ分けされている場合のみ、それ以外は空文字）。',
+      '- 挨拶、チャンネル紹介、ハッシュタグ、広告、レシピと無関係な文章は一切含めないこと。',
+      '',
+      '文章:',
+      '"""',
+      text,
+      '"""',
+    ].join('\n');
+
+    const body = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            servings: { type: 'string' },
+            ingredients: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  qty: { type: 'string' },
+                  group: { type: 'string' },
+                },
+                required: ['name'],
+              },
+            },
+            steps: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  text: { type: 'string' },
+                  group: { type: 'string' },
+                },
+                required: ['text'],
+              },
+            },
+          },
+          required: ['ingredients', 'steps'],
+        },
+      },
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json()).error?.message || ''; } catch (e) { /* ignore */ }
+      throw new Error(`Gemini API エラー (${res.status})${detail ? ': ' + detail : ''}`);
+    }
+
+    const data = await res.json();
+    const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!jsonText) throw new Error('Geminiからの応答を読み取れませんでした。');
+    const parsedJson = JSON.parse(jsonText);
+
+    const groupOrder = [];
+    const ingredients = (Array.isArray(parsedJson.ingredients) ? parsedJson.ingredients : [])
+      .map((i) => {
+        const group = (i.group || '').trim();
+        if (group && !groupOrder.includes(group)) groupOrder.push(group);
+        return { id: uid(), name: (i.name || '').trim(), qty: (i.qty || '').trim(), group };
+      })
+      .filter((i) => i.name);
+    const steps = (Array.isArray(parsedJson.steps) ? parsedJson.steps : [])
+      .map((s) => {
+        const group = (s.group || '').trim();
+        if (group && !groupOrder.includes(group)) groupOrder.push(group);
+        return { id: uid(), text: (s.text || '').trim(), group };
+      })
+      .filter((s) => s.text);
+
+    return {
+      name: (parsedJson.name || '').trim(),
+      servings: (parsedJson.servings || '').trim(),
+      ingredients,
+      steps,
+      groupOrder,
+    };
+  }
+
+  document.getElementById('importRecipeBtn').addEventListener('click', async () => {
     const textEl = document.getElementById('recipeImportText');
+    const btn = document.getElementById('importRecipeBtn');
     const text = textEl.value;
     if (!text.trim()) return;
 
-    const parsed = parseRecipeText(text);
+    let parsed = null;
+    let usedGemini = false;
+
+    if (getGeminiKey()) {
+      const originalLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Geminiで解析中...';
+      try {
+        parsed = await callGeminiParse(text);
+        usedGemini = true;
+      } catch (e) {
+        console.error('Gemini parse failed, falling back to the regex parser', e);
+        showToast('Geminiでの解析に失敗したため、簡易解析にフォールバックしました');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      }
+    }
+
+    if (!parsed || (parsed.ingredients.length === 0 && parsed.steps.length === 0)) {
+      parsed = parseRecipeText(text);
+      usedGemini = false;
+    }
+
     if (parsed.ingredients.length === 0 && parsed.steps.length === 0) {
       alert('材料・手順を読み取れませんでした。「材料」「作り方」などの見出しを含む文章を貼り付けてください。');
       return;
@@ -1260,7 +1397,7 @@
     textEl.value = '';
     document.querySelector('.import-card').removeAttribute('open');
     openRecipeDetail(recipe.id);
-    showToast(`材料${parsed.ingredients.length}件・手順${parsed.steps.length}件を読み込みました。内容を確認してください。`);
+    showToast(`${usedGemini ? 'Geminiで' : ''}材料${parsed.ingredients.length}件・手順${parsed.steps.length}件を読み込みました。内容を確認してください。`);
   });
 
   // ---------- Recipe detail ----------
@@ -1685,8 +1822,68 @@
     showToast('全データを削除しました');
   });
 
+  // ---------- Settings: Gemini API key ----------
+  function getGeminiKey() {
+    try {
+      return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function getGeminiModel() {
+    try {
+      return localStorage.getItem(GEMINI_MODEL_STORAGE) || DEFAULT_GEMINI_MODEL;
+    } catch (e) {
+      return DEFAULT_GEMINI_MODEL;
+    }
+  }
+
+  function renderGeminiKeyStatus() {
+    const statusEl = document.getElementById('geminiKeyStatus');
+    const aiStatusEl = document.getElementById('importAiStatus');
+    const hasKey = !!getGeminiKey();
+    statusEl.textContent = hasKey
+      ? `保存済み（モデル: ${getGeminiModel()}）。未入力のまま「保存」すると更新されません。`
+      : '未設定です。設定すると崩れた文章でも高精度に解析できます。';
+    aiStatusEl.textContent = hasKey
+      ? 'Geminiで解析します（文章はGoogleに送信されます）。'
+      : '簡易的な文章解析を使います（設定タブでGeminiを有効にすると精度が上がります）。';
+  }
+
+  document.getElementById('saveGeminiKeyBtn').addEventListener('click', () => {
+    const keyEl = document.getElementById('geminiApiKey');
+    const modelEl = document.getElementById('geminiModel');
+    const key = keyEl.value.trim();
+    if (!key) {
+      alert('APIキーを入力してください。');
+      return;
+    }
+    try {
+      localStorage.setItem(GEMINI_KEY_STORAGE, key);
+      localStorage.setItem(GEMINI_MODEL_STORAGE, modelEl.value.trim() || DEFAULT_GEMINI_MODEL);
+    } catch (e) {
+      alert('保存に失敗しました。');
+      return;
+    }
+    keyEl.value = '';
+    modelEl.value = '';
+    renderGeminiKeyStatus();
+    showToast('Gemini APIキーを保存しました');
+  });
+
+  document.getElementById('clearGeminiKeyBtn').addEventListener('click', () => {
+    try {
+      localStorage.removeItem(GEMINI_KEY_STORAGE);
+      localStorage.removeItem(GEMINI_MODEL_STORAGE);
+    } catch (e) { /* ignore */ }
+    renderGeminiKeyStatus();
+    showToast('Gemini APIキーを削除しました');
+  });
+
   // ---------- Init ----------
   renderStoreList();
+  renderGeminiKeyStatus();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

@@ -136,9 +136,9 @@
       <details class="card import-card">
         <summary>📋 テキストから自動作成</summary>
         <p class="muted import-help">
-          YouTubeの概要欄やレシピサイトの文章をコピーして、下に貼り付けてください。
-          「材料」「作り方」などの見出しをもとに、AIではなく簡易的な文章解析で自動的に読み取ります
+          YouTubeの概要欄やレシピサイトの文章をコピーして、下に貼り付けてください
           （URLを貼るのではなく、概要欄の文章そのものをコピーして貼り付けてください）。
+          <span id="importAiStatus"></span>
           読み取り後は内容を確認・修正してください。
         </p>
         <textarea id="recipeImportText" rows="8" placeholder="ここに材料・作り方が書かれた文章を貼り付け...&#10;&#10;例:&#10;材料（2人分）&#10;・豚こま肉 200g&#10;・玉ねぎ 1個&#10;&#10;作り方&#10;1. 豚肉に下味をつける&#10;2. 炒める"></textarea>
@@ -234,6 +234,30 @@
       <div class="btn-row">
         <button id="clearAllBtn" class="btn-danger">全データを削除</button>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>AIレシピ解析（Gemini・任意）</h2>
+      <p class="muted">
+        設定すると、テキストからのレシピ自動作成が崩れた文章にも強くなります（Googleの無料枠を使用）。
+        貼り付けたレシピ文章はGoogleのGemini APIに送信されます。未設定でも、簡易的な文章解析で今まで通り使えます。
+        APIキーはこの端末のブラウザ内にのみ保存され、エクスポートJSONにも含まれません。
+      </p>
+      <p class="muted">
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>
+        で無料のAPIキーを取得できます。
+      </p>
+      <div class="form-row">
+        <input type="password" id="geminiApiKey" placeholder="Gemini APIキー" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <input type="text" id="geminiModel" placeholder="モデル名（例: gemini-2.0-flash）">
+      </div>
+      <div class="btn-row">
+        <button id="saveGeminiKeyBtn" class="btn-primary">保存</button>
+        <button id="clearGeminiKeyBtn" class="btn-secondary">削除</button>
+      </div>
+      <p id="geminiKeyStatus" class="muted"></p>
     </div>
   </section>
 
