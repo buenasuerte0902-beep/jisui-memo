@@ -1129,6 +1129,140 @@
     openRecipeDetail(recipe.id);
   });
 
+  // ---------- Text import (paste a YouTube description etc.) ----------
+  // Best-effort pattern matching, not real language understanding: it looks
+  // for "材料"/"作り方" style headings and bullet/numbered lines, which is
+  // how most recipe descriptions (YouTube, blogs) are actually formatted.
+  // Freeform prose without that structure won't parse well — the result
+  // always lands on the editable recipe detail screen so mistakes are easy
+  // to fix rather than something the user has to trust blindly.
+
+  function toHalfWidthDigits(s) {
+    return s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  }
+
+  function stripListMarker(line) {
+    return line
+      .replace(/^[\s]*[・\-*●○◦‣▪]+\s*/, '')
+      .replace(/^[\s]*[0-9０-９]+\s*[.)、）]\s*/, '')
+      .replace(/^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]\s*/, '')
+      .trim();
+  }
+
+  const QTY_TAIL_RE = '(?:[0-9０-９]+(?:\\.[0-9]+)?\\s*(?:kg|g|ml|l|cc|個|コ|パック|本|袋|枚|玉|片|かけ|束|カップ)|大さじ\\s*[0-9０-９/半]+|小さじ\\s*[0-9０-９/半]+|少々|ひとつまみ|適量)';
+
+  function parseIngredientLine(line) {
+    if (!line) return null;
+    let m = line.match(/^(.+?)[：:]\s*(.+)$/);
+    if (m) return { name: m[1].trim(), qty: toHalfWidthDigits(m[2].trim()) };
+
+    m = line.match(/^(.+?)[ \t　]{2,}(.+)$/);
+    if (m) return { name: m[1].trim(), qty: toHalfWidthDigits(m[2].trim()) };
+
+    m = line.match(new RegExp('^(.+?)[\\s　]+(' + QTY_TAIL_RE + ')\\s*$', 'i'));
+    if (m) return { name: m[1].trim(), qty: toHalfWidthDigits(m[2].trim()) };
+
+    return { name: line, qty: '' };
+  }
+
+  function parseRecipeText(text) {
+    const lines = text.split(/\r?\n/).map((l) => l.trim());
+    let name = '';
+    let servings = '';
+    const ingredients = [];
+    const steps = [];
+    const groupOrder = [];
+    let section = null; // 'ingredients' | 'steps' | null
+    let currentGroup = '';
+    const servingsRe = /([0-9０-９]+)\s*人分/;
+
+    for (const line of lines) {
+      if (!line) continue;
+
+      if (/^(材料|Ingredients?)/i.test(line)) {
+        section = 'ingredients';
+        currentGroup = '';
+        if (!servings) {
+          const sm = line.match(servingsRe);
+          if (sm) servings = toHalfWidthDigits(sm[0]);
+        }
+        continue;
+      }
+      if (/^(作り方|手順|Instructions?|Directions?)/i.test(line)) {
+        section = 'steps';
+        currentGroup = '';
+        continue;
+      }
+
+      const groupMatch = section && line.match(/^[【\[](.+?)[】\]]\s*$/);
+      if (groupMatch) {
+        currentGroup = groupMatch[1].trim();
+        if (currentGroup && !groupOrder.includes(currentGroup)) groupOrder.push(currentGroup);
+        continue;
+      }
+
+      if (!section) {
+        if (!name) {
+          // Strip a decorative leading tag like "【簡単】" or a standalone
+          // bracket around the whole line, so "【簡単】生姜焼き" becomes
+          // just "生姜焼き".
+          name = stripListMarker(line)
+            .replace(/^[【\[][^】\]]*[】\]]\s*/, '')
+            .replace(/^[【\[]|[】\]]$/g, '')
+            .trim();
+        }
+        if (!servings) {
+          const sm = line.match(servingsRe);
+          if (sm) servings = toHalfWidthDigits(sm[0]);
+        }
+        continue;
+      }
+
+      if (section === 'ingredients') {
+        const parsed = parseIngredientLine(stripListMarker(line));
+        if (parsed && parsed.name) {
+          ingredients.push({ id: uid(), name: parsed.name, qty: parsed.qty, group: currentGroup });
+        }
+        continue;
+      }
+
+      if (section === 'steps') {
+        const stepText = stripListMarker(line);
+        if (stepText) steps.push({ id: uid(), text: stepText, group: currentGroup });
+      }
+    }
+
+    return { name, servings, ingredients, steps, groupOrder };
+  }
+
+  document.getElementById('importRecipeBtn').addEventListener('click', () => {
+    const textEl = document.getElementById('recipeImportText');
+    const text = textEl.value;
+    if (!text.trim()) return;
+
+    const parsed = parseRecipeText(text);
+    if (parsed.ingredients.length === 0 && parsed.steps.length === 0) {
+      alert('材料・手順を読み取れませんでした。「材料」「作り方」などの見出しを含む文章を貼り付けてください。');
+      return;
+    }
+
+    const recipe = {
+      id: uid(),
+      name: parsed.name || '新しいレシピ',
+      servings: parsed.servings,
+      ingredients: parsed.ingredients,
+      steps: parsed.steps,
+      groupOrder: parsed.groupOrder,
+      createdAt: new Date().toISOString(),
+    };
+    state.data.recipes.push(recipe);
+    saveData();
+    textEl.value = '';
+    document.querySelector('.import-card').removeAttribute('open');
+    openRecipeDetail(recipe.id);
+    showToast(`材料${parsed.ingredients.length}件・手順${parsed.steps.length}件を読み込みました。内容を確認してください。`);
+  });
+
   // ---------- Recipe detail ----------
   function openRecipeDetail(recipeId) {
     state.currentRecipeId = recipeId;

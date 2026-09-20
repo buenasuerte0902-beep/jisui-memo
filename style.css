@@ -113,6 +113,33 @@ main#app {
   gap: 8px;
 }
 
+.import-card summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-primary);
+  list-style: none;
+}
+.import-card summary::-webkit-details-marker {
+  display: none;
+}
+.import-card summary::before {
+  content: '▸ ';
+}
+.import-card[open] summary::before {
+  content: '▾ ';
+}
+
+.import-help {
+  margin: 10px 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.import-submit {
+  margin-top: 10px;
+  width: 100%;
+}
+
 .form-row {
   margin-bottom: 8px;
 }

@@ -132,6 +132,19 @@
         <input type="text" id="recipeName" placeholder="レシピ名（例: 豚こま肉の生姜焼き）" required>
         <button type="submit" class="btn-primary">レシピを作成</button>
       </form>
+
+      <details class="card import-card">
+        <summary>📋 テキストから自動作成</summary>
+        <p class="muted import-help">
+          YouTubeの概要欄やレシピサイトの文章をコピーして、下に貼り付けてください。
+          「材料」「作り方」などの見出しをもとに、AIではなく簡易的な文章解析で自動的に読み取ります
+          （URLを貼るのではなく、概要欄の文章そのものをコピーして貼り付けてください）。
+          読み取り後は内容を確認・修正してください。
+        </p>
+        <textarea id="recipeImportText" rows="8" placeholder="ここに材料・作り方が書かれた文章を貼り付け...&#10;&#10;例:&#10;材料（2人分）&#10;・豚こま肉 200g&#10;・玉ねぎ 1個&#10;&#10;作り方&#10;1. 豚肉に下味をつける&#10;2. 炒める"></textarea>
+        <button type="button" id="importRecipeBtn" class="btn-primary import-submit">解析してレシピを作成</button>
+      </details>
+
       <ul id="recipeList" class="list"></ul>
       <p id="recipeEmpty" class="empty-msg">まだレシピが登録されていません。上のフォームから追加してください。</p>
     </div>
