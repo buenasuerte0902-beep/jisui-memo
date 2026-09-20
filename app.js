@@ -1151,17 +1151,47 @@
 
   function stripListMarker(line) {
     return line
-      .replace(/^[\s]*[・\-*●○◦‣▪]+\s*/, '')
+      .replace(/^[\s]*[・\-*●○◦‣▪☆★※]+\s*/, '')
       .replace(/^[\s]*[0-9０-９]+\s*[.)、）]\s*/, '')
       .replace(/^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]\s*/, '')
       .trim();
+  }
+
+  // "【簡単】生姜焼き" → the bracket is a decorative prefix, real title
+  // follows it. "【至高のタフガイロースト】" (nothing after the bracket)
+  // → the bracket IS the title. Both are common; this tells them apart by
+  // whether anything follows the closing bracket.
+  function extractTitle(line) {
+    const s = stripListMarker(line);
+    const m = s.match(/^[【\[]([^】\]]*)[】\]]\s*(.*)$/);
+    if (m) return (m[2].trim() || m[1].trim());
+    return s.trim();
+  }
+
+  // Recognizes a line that's ONLY a group/section name, in any of the
+  // common decorative wrappings recipe text uses: 【たれ】, [Sauce],
+  // =ソース=, ＝ソース＝.
+  function matchGroupHeading(line) {
+    const m = line.match(/^(?:[【\[](.+?)[】\]]|[=＝]{1,}\s*(.+?)\s*[=＝]{1,})\s*$/);
+    if (!m) return null;
+    return (m[1] || m[2] || '').trim();
   }
 
   const QTY_TAIL_RE = '(?:[0-9０-９]+(?:\\.[0-9]+)?\\s*(?:kg|g|ml|l|cc|個|コ|パック|本|袋|枚|玉|片|かけ|束|カップ)|大さじ\\s*[0-9０-９/半]+|小さじ\\s*[0-9０-９/半]+|少々|ひとつまみ|適量)';
 
   function parseIngredientLine(line) {
     if (!line) return null;
+    // A line that's entirely a parenthetical aside (e.g. "（今回は牛もも肉
+    // のブロックです）") is a note, not an ingredient — skip it rather than
+    // adding it as a garbled entry.
+    if (/^[（(].*[）)]$/.test(line)) return null;
+
     let m = line.match(/^(.+?)[：:]\s*(.+)$/);
+    if (m) return { name: m[1].trim(), qty: toHalfWidthDigits(m[2].trim()) };
+
+    // "牛肉ブロック…350g" — a dot-leader/ellipsis between name and qty is a
+    // very common Japanese recipe-blog convention.
+    m = line.match(/^(.+?)[…‥･]{1,}\s*(.+)$/);
     if (m) return { name: m[1].trim(), qty: toHalfWidthDigits(m[2].trim()) };
 
     m = line.match(/^(.+?)[ \t　]{2,}(.+)$/);
@@ -1171,6 +1201,51 @@
     if (m) return { name: m[1].trim(), qty: toHalfWidthDigits(m[2].trim()) };
 
     return { name: line, qty: '' };
+  }
+
+  // Some recipe text (personal blogs, note.com-style posts) has no
+  // "材料"/"作り方" headings at all: just a title, a block of short
+  // ingredient-ish lines, a blank line, then a block of longer paragraph
+  // sentences that are really the steps. When the heading-based parse above
+  // finds nothing, this guesses from that paragraph structure instead of
+  // giving up — better an imperfect guess the user can edit than "材料・
+  // 手順を読み取れませんでした" on a perfectly good recipe.
+  function parseNoHeadingBlocks(lines) {
+    const blocks = [[]];
+    let skippedTitle = false;
+    for (const raw of lines) {
+      if (!skippedTitle && raw.trim()) { skippedTitle = true; continue; }
+      if (!raw.trim()) {
+        if (blocks[blocks.length - 1].length > 0) blocks.push([]);
+        continue;
+      }
+      blocks[blocks.length - 1].push(raw.trim());
+    }
+    const nonEmptyBlocks = blocks.filter((b) => b.length > 0);
+    if (nonEmptyBlocks.length < 2) return null;
+
+    const ingredients = [];
+    const groupOrder = [];
+    let currentGroup = '';
+    for (const raw of nonEmptyBlocks[0]) {
+      const group = matchGroupHeading(raw);
+      if (group !== null) {
+        currentGroup = group;
+        if (currentGroup && !groupOrder.includes(currentGroup)) groupOrder.push(currentGroup);
+        continue;
+      }
+      const parsed = parseIngredientLine(stripListMarker(raw));
+      if (parsed && parsed.name) {
+        ingredients.push({ id: uid(), name: parsed.name, qty: parsed.qty, group: currentGroup });
+      }
+    }
+
+    const steps = nonEmptyBlocks.slice(1).flat()
+      .map((raw) => stripListMarker(raw))
+      .filter(Boolean)
+      .map((text) => ({ id: uid(), text, group: '' }));
+
+    return { ingredients, steps, groupOrder };
   }
 
   function parseRecipeText(text) {
@@ -1202,23 +1277,17 @@
         continue;
       }
 
-      const groupMatch = section && line.match(/^[【\[](.+?)[】\]]\s*$/);
-      if (groupMatch) {
-        currentGroup = groupMatch[1].trim();
-        if (currentGroup && !groupOrder.includes(currentGroup)) groupOrder.push(currentGroup);
-        continue;
+      if (section) {
+        const groupName = matchGroupHeading(line);
+        if (groupName !== null) {
+          currentGroup = groupName;
+          if (currentGroup && !groupOrder.includes(currentGroup)) groupOrder.push(currentGroup);
+          continue;
+        }
       }
 
       if (!section) {
-        if (!name) {
-          // Strip a decorative leading tag like "【簡単】" or a standalone
-          // bracket around the whole line, so "【簡単】生姜焼き" becomes
-          // just "生姜焼き".
-          name = stripListMarker(line)
-            .replace(/^[【\[][^】\]]*[】\]]\s*/, '')
-            .replace(/^[【\[]|[】\]]$/g, '')
-            .trim();
-        }
+        if (!name) name = extractTitle(line);
         if (!servings) {
           const sm = line.match(servingsRe);
           if (sm) servings = toHalfWidthDigits(sm[0]);
@@ -1237,6 +1306,15 @@
       if (section === 'steps') {
         const stepText = stripListMarker(line);
         if (stepText) steps.push({ id: uid(), text: stepText, group: currentGroup });
+      }
+    }
+
+    if (ingredients.length === 0 && steps.length === 0) {
+      const fallback = parseNoHeadingBlocks(lines);
+      if (fallback) {
+        ingredients.push(...fallback.ingredients);
+        steps.push(...fallback.steps);
+        fallback.groupOrder.forEach((g) => { if (!groupOrder.includes(g)) groupOrder.push(g); });
       }
     }
 
